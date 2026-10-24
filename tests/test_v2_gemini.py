@@ -40,6 +40,7 @@ def test_google_analysis_header_schema_and_source_validation(monkeypatch):
     assert request.headers["x-goog-api-key"] == "test-only-key"
     assert "test-only-key" not in str(request.url)
     config = json.loads(request.content)["generationConfig"]
+    assert config["thinkingConfig"] == {"thinkingLevel": "low"}
     assert config["responseMimeType"] == "application/json"
     assert "questions" in config["responseJsonSchema"]["properties"]
     assert "$ref" not in json.dumps(config["responseJsonSchema"])
@@ -66,6 +67,25 @@ def test_google_errors_do_not_expose_secrets(monkeypatch, status, expected):
         provider.translate("試験")
     assert caught.value.status_code == expected
     assert "secret" not in caught.value.detail and "test-only-key" not in caught.value.detail
+
+
+@pytest.mark.parametrize("error,expected", [(httpx.ReadTimeout, 504), (httpx.ConnectError, 503)])
+def test_network_failure_is_retryable_and_does_not_expose_request(monkeypatch, error, expected):
+    monkeypatch.setenv("GEMINI_API_KEY", "private-test-key")
+    original = httpx.Client
+
+    def fail(request):
+        raise error("private upstream diagnostic", request=request)
+
+    monkeypatch.setattr(
+        "app.v2_providers.httpx.Client",
+        lambda **kwargs: original(transport=httpx.MockTransport(fail), **kwargs),
+    )
+    with pytest.raises(HTTPException) as caught:
+        GeminiProvider().translate("試験")
+    assert caught.value.status_code == expected
+    assert "saved sources are retained" in caught.value.detail
+    assert "private" not in caught.value.detail
 
 
 @pytest.mark.parametrize("text,finish", [("", "STOP"), ("partial", "MAX_TOKENS"), ("blocked", "SAFETY")])

@@ -56,6 +56,10 @@ class GeminiProvider:
 
     def generate(self, system, parts, schema=None):
         config = {"temperature": 0.1, "maxOutputTokens": 8192}
+        # Interactive inspection tasks do not need the default medium reasoning
+        # latency. Keep the output budget intact so valid JSON is not truncated.
+        if self.model in {"gemini-3.8-flash", "gemini-3.7-flash", "gemini-3.6-flash"}:
+            config["thinkingConfig"] = {"thinkingLevel": "low"}
         if schema:
             config.update(responseMimeType="application/json", responseJsonSchema=google_schema(schema))
         payload = {
@@ -94,7 +98,15 @@ class GeminiProvider:
             if not result or len(result) > 32000:
                 raise ValueError("Empty or excessive generation")
             return result
-        except (httpx.HTTPError, KeyError, IndexError, TypeError, ValueError) as exc:
+        except httpx.TimeoutException as exc:
+            raise HTTPException(
+                504, "Google response timed out; saved sources are retained. Retry the same request later."
+            ) from exc
+        except httpx.HTTPError as exc:
+            raise HTTPException(
+                503, "Google connection failed; saved sources are retained. Retry when connectivity recovers."
+            ) from exc
+        except (KeyError, IndexError, TypeError, ValueError) as exc:
             raise HTTPException(
                 502, "Gemini returned an incomplete, blocked or invalid response; saved sources are retained"
             ) from exc
