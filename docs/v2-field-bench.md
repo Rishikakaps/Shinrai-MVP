@@ -180,8 +180,10 @@ errors must leave its original source intact. Do not switch models silently.
 
 ### Android tablet / Chrome — HARDWARE VALIDATION PENDING
 
-The current build remains offline on the laptop. When ready, set ngrok privately
-and run `PORT=8004` (PowerShell `$env:PORT='8004'`) with `python -m scripts.tunnel`.
+Set ngrok privately and run `PORT=8004` (PowerShell `$env:PORT='8004'`) with
+`python -m scripts.tunnel`. The launcher uses the v3 endpoint schema: a loopback
+`upstream`, public binding and optional HTTPS `url`. It deliberately avoids legacy
+`bind_tls`/`schemes` settings, which fail against the current endpoint API.
 Expose only the authenticated application; keep Mailpit and database ports private.
 Tablet camera/microphone need a secure HTTPS origin; a laptop localhost exception
 does not make plain tablet-to-laptop HTTP secure.
@@ -195,6 +197,12 @@ Stop/restart the laptop backend without deleting data; retrieve and compare sour
 digests, bindings, transcript corrections and audit. Repeat visits must reuse the
 confirmed physical identity; replacements must have separate identity records.
 Record tablet model/browser, origin, codecs, environment and observed outcomes.
+
+On 25 October, the laptop's live ngrok endpoint passed public readiness, protected
+login, Secure/HttpOnly session-cookie, authenticated field-page and same-origin
+CSRF-protected write checks. A QR code was generated and decoded back to the exact
+field-page URL. This verifies the HTTPS route; the physical Android camera and
+microphone remain pending. Keep the laptop/backend/tunnel running while using it.
 
 ## Recovery and limits
 

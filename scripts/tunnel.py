@@ -9,6 +9,28 @@ from pyngrok import conf, ngrok
 from pyngrok.exception import PyngrokError
 
 
+def endpoint_options(port, endpoint=""):
+    """Use the v3 endpoint schema; legacy bind_tls becomes an invalid schemes field."""
+    port = int(port)
+    if not 1 <= port <= 65535:
+        raise ValueError("PORT must be between 1 and 65535")
+    options = {"upstream": {"url": f"http://127.0.0.1:{port}"}, "bindings": ["public"]}
+    if endpoint:
+        parsed = urlparse(endpoint if "://" in endpoint else "https://" + endpoint)
+        if (
+            parsed.scheme != "https"
+            or not parsed.hostname
+            or parsed.username
+            or parsed.password
+            or parsed.path not in {"", "/"}
+            or parsed.query
+            or parsed.fragment
+        ):
+            raise ValueError("NGROK_URL must be an HTTPS endpoint hostname without credentials or a path")
+        options["url"] = "https://" + parsed.netloc
+    return options
+
+
 def main():
     root = Path(__file__).resolve().parents[1]
     load_dotenv(root / ".env", override=False)
@@ -22,15 +44,16 @@ def main():
         config_path=str(tools / "ngrok.yml"),
         auth_token=token,
         monitor_thread=True,
+        config_version="3",
     )
-    options = {"bind_tls": True}
-    endpoint = os.environ.get("NGROK_URL", "").strip()
-    if endpoint:
-        options["domain"] = urlparse(endpoint if "://" in endpoint else "https://" + endpoint).netloc
     try:
-        tunnel = ngrok.connect(
-            addr="127.0.0.1:" + os.environ.get("PORT", "8000"), proto="http", pyngrok_config=config, **options
-        )
+        options = endpoint_options(os.environ.get("PORT", "8000"), os.environ.get("NGROK_URL", "").strip())
+    except ValueError as exc:
+        raise SystemExit(str(exc)) from None
+    try:
+        tunnel = ngrok.connect(pyngrok_config=config, **options)
+        if urlparse(tunnel.public_url).scheme != "https":
+            raise SystemExit("ngrok did not create the required HTTPS endpoint")
         print("Backend HTTPS endpoint:", tunnel.public_url, flush=True)
         print("Health:", tunnel.public_url + "/health", flush=True)
         ngrok.get_ngrok_process(pyngrok_config=config).proc.wait()

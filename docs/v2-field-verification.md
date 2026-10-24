@@ -50,5 +50,25 @@ Gemini was explicitly deferred by the user. The physical target is **Android
 tablet / Chrome**; its acceptance checklist is in the runbook. The current local
 server uses SQLite; this new checkout is not connected to the user's Supabase.
 
-No live provider response, physical-tablet test, external HTTPS deployment, Docker
-execution or post-push CI success is claimed by this local verification record.
+The initial local record above did not verify a live provider response, physical
+tablet, external HTTPS route, Docker execution or post-push CI. Subsequent checks
+are recorded separately below and in the PR checks.
+
+## Subsequent tablet HTTPS check — 25 October
+
+The user's ngrok credentials were saved privately. An initial launch exposed a
+real compatibility failure: pyngrok 9.0.3 translated legacy `bind_tls` into a
+`schemes` property rejected by ngrok 3.39.13's v3 endpoint API. The launcher now
+uses explicit v3 `upstream`/`bindings`/optional HTTPS `url` configuration.
+Eight focused launcher contract/failure tests passed. Live public readiness,
+authentication, Secure/HttpOnly cookies, field-page retrieval and a CSRF-protected
+same-origin write all passed through the HTTPS endpoint. Its QR code was decoded
+and checked against the exact URL. The actual Android tablet camera/microphone
+test remains pending; the endpoint stays available only while its agent and laptop
+backend are running. No credential or runtime configuration is committed.
+
+The user's Gemini key was also loaded privately. Model metadata and a basic real
+generation request succeeded, but full translation/audio verification encountered
+timeouts/provider errors. A synthetic English audio original remained retrievable
+with its SHA-256 intact after failure. End-to-end live Gemini and real Japanese
+speech validation remain pending.
