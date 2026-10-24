@@ -28,3 +28,7 @@ Choose a structure for each page; there is no requirement to use the densest opt
 - Shared: loading/errors, stale assessment indicator, edit-conflict handling and read-only judge access.
 
 No frontend code or backend behavior was changed to create this gallery.
+
+## Labelled simple-theme guide
+
+[Theme A: all four screens with numbered explanations](labelled-theme-a/README.md), covering data sources, analyst-editable fields, system results and read-only judge access.

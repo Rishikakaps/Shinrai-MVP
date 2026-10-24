@@ -157,3 +157,5 @@ This project is maintained in a private GitHub repository. See [the changelog](C
 ## Frontend layout concepts
 
 [Compare 20 generated layout mockups](docs/design-exploration/README.md): five density/style directions for each of the four proposed trial pages. These are concept images, not implemented frontend screens or approved scope changes. Prompts are included with the gallery.
+
+[Labelled Theme A guide](docs/design-exploration/labelled-theme-a/README.md): the four simple screens annotated with each section's role, scan-derived data, analyst edits and judge access.

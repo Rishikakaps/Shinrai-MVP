@@ -2,6 +2,8 @@
 
 ## Unreleased — layout exploration
 
+- Add labelled Theme A versions of all four screens and a backend-checked field-source/edit-permission guide; original concepts retained.
+
 - Add 20 generated frontend mockups: five styles for each of four trial pages, from minimal notebook to dense operations console.
 - Include page-by-page galleries, the element checklist, and generation prompts. These are design concepts; no frontend implementation or backend behavior changed.
 
