@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Sign in · Capital Integrity</title><link rel="stylesheet" href="/static/app.css">
+</head>
+<body class="login-page">
+  <header class="login-brand">Capital Integrity <span>Japan Day · controlled trial</span></header>
+  <main class="login-main">
+    <p class="eyebrow">A careful look at the evidence</p>
+    <h1>Pick up your inspection.</h1>
+    <p class="intro">Use your team’s analyst or judge access key. Your key determines what you can change.</p>
+    <form action="/login" method="post" class="login-form">
+      <input type="hidden" name="nonce" value="{{ nonce }}">
+      <label for="token">Team access key</label>
+      <input id="token" name="token" type="password" required maxlength="512" autocomplete="off" spellcheck="false" autofocus>
+      {% if error %}<p role="alert" class="error-text">{{ error }}</p>{% endif %}
+      <button class="primary" type="submit">Open workspace <span aria-hidden="true">→</span></button>
+    </form>
+    <p class="muted small">Analysts upload, correct and review. Judges can view and download.<br>Use synthetic evidence for this demonstration.</p>
+  </main>
+</body>
+</html>

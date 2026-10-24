@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.0 — connected FastAPI app and uploaded backend integration
+
+- Implement the softened D browser workflow: Overview, Evidence, Site inspection and Assessment; collapsed navigation/details, bottom records trays, scrollable tables and sequential sections.
+- Connect original upload/preview, extraction/OCR, analyst correction/acceptance, explicit claim links, observations, reconciliation, review, follow-ups, immutable history and report/JSON download. Add non-destructive fresh Plant A trials and matching synthetic certificates.
+- Add opaque persistent browser sessions, CSRF/origin protection and read-only judge UI while retaining bearer API clients. Render PDF pages for browsers without a native PDF viewer.
+- Integrate the owner’s ZIP: Postgres/Supabase adapter, migration, Windows-friendly runners, readiness/meta, forced OCR, safer backups and deployment regression tests. Fix browser sessions for both database adapters.
+- Add real Postgres tests and document deployment limits. Verify the certificate journey in the actual browser: 16 supported / 2 unresolved, 18 reviewed, earlier unresolved history retained, request resolved, report/JSON downloaded.
+- No real Supabase/ngrok deployment or camera/vision integration was performed. The ZIP supplied no diagram files; existing design documentation is preserved.
+
 ## Unreleased — layout exploration
 
 - Add labelled Theme A versions of all four screens and a backend-checked field-source/edit-permission guide; original concepts retained.

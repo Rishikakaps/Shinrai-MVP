@@ -35,7 +35,7 @@ def basis(store, db, scope):
     for cls in (Asset, Claim, Evidence, EvidenceLink):
         payload[cls.__name__] = [o.model_dump(mode="json") for o in store.list(db, cls, scope)]
     payload["integrity"] = {e.id: intact(store, e) for e in store.list(db, Evidence, scope)}
-    payload["rules"] = "v1.0"
+    payload["rules"] = "v1.1"
     return hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()
 
 
@@ -105,7 +105,12 @@ def evaluate(store, db, scope, fingerprint):
                 if any(
                     i.facts.amount is not None
                     and r.facts.amount is not None
-                    and (i.facts.amount != r.facts.amount or i.facts.currency != r.facts.currency)
+                    and i.facts.amount != r.facts.amount
+                    or (
+                        i.facts.currency is not None
+                        and r.facts.currency is not None
+                        and i.facts.currency != r.facts.currency
+                    )
                     for i, r in pairs
                 ):
                     status, explanation = (

@@ -198,7 +198,7 @@ class Finding(Entity):
     next_best_action: str
     evidence_ids: list[str]
     basis_hash: str
-    rule_version: str = "v1.0"
+    rule_version: str = "v1.1"
     reviewed_status: Status | None = None
     reviewed_by: str | None = None
     reviewed_at: str | None = None
@@ -274,3 +274,7 @@ class Report(Model):
     follow_ups: list[FollowUpAction]
     review_events: list[ReviewEvent]
     scope: str = "Equipment/declared assets, invoices and payment extracts only. Financial statements are contextual; no underwriting or fraud conclusion. Synthetic demo data only."
+
+
+class ExtractionRequest(Reason):
+    force_ocr: bool = False

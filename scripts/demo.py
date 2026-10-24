@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 
 import httpx
+from dotenv import load_dotenv
 from PIL import Image, ImageDraw, ImageFont
 from reportlab.pdfgen import canvas
 
@@ -235,6 +236,7 @@ def seed(client, name="Plant A - three CNC machines"):
 
 
 def main():
+    load_dotenv(Path(__file__).resolve().parents[1] / ".env", override=False)
     parser = argparse.ArgumentParser()
     parser.add_argument("--url", default="http://127.0.0.1:8000")
     parser.add_argument("--output", type=Path)

@@ -1,5 +1,15 @@
 # Verification evidence — 24 October 2026
 
+## Connected browser / uploaded backend update
+
+The combined suite passed **87 tests**, including a real isolated Postgres 16 server, with one non-failing Starlette dependency warning. Static Python checks and JavaScript syntax validation passed. Without `CDI_TEST_DATABASE_URL`, the seven Postgres tests skip explicitly; the SQLite/browser tests still run.
+
+The actual in-app browser completed a fresh synthetic inspection: PDF download/upload, real extraction, rendered original comparison, analyst acceptance, support link, reconciliation, reviewed conclusion, follow-up resolution, explicit re-review of unchanged findings, review completion and text/JSON downloads. Commissioning stayed unresolved before acceptance. The final export has 16 supported / 2 unresolved claims, 18 current findings reviewed, two earlier unresolved CNC-002 findings retained, 164 audit events and two open CNC-003 follow-ups. See [browser result](../output/ui-trial/result.json), [downloaded report](../output/ui-trial/browser-report.txt) and [downloaded export](../output/ui-trial/browser-export.json).
+
+The native app was restarted on port 8002 with the same credentials and saved session. A verified SQLite/files backup moved the trial into persistent project runtime storage; credentials remain in ignored local configuration. An isolated local Postgres database tested JSONB, audit immutability, transaction rollback, concurrent edits, independent readers, browser CSRF/session workflow and synthetic trial creation. A hosted Supabase account, ngrok/HTTPS, the other laptops and Windows execution were not exercised. Docker runtime was unavailable locally; GitHub Actions performs an image build.
+
+Earlier backend-only verification is retained below as historical evidence.
+
 ## Automated acceptance/failure tests
 
 Final run: **52 passed**, one non-failing dependency deprecation warning, in 10.39 seconds on Python 3.12.14/macOS. `ruff check app scripts tests` and `ruff format --check app scripts tests` passed.

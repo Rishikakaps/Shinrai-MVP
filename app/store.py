@@ -1,4 +1,4 @@
-"""Small transactional SQLite store. Every mutation writes an immutable audit event."""
+"""Transactional typed object store with audited revisions; SQLite local fallback."""
 
 import json
 import sqlite3
@@ -30,13 +30,21 @@ PRAGMA user_version=1;
 
 
 class Store:
+    backend = "sqlite"
+    objects_table = "objects"
+    events_table = "review_events"
+    object_order = "rowid"
+
     def __init__(self, root: Path):
         self.root = root
         self.files = root / "files"
         self.files.mkdir(parents=True, exist_ok=True, mode=0o700)
-        with self.connect() as db:
+        db = self.connect()
+        try:
             db.execute("PRAGMA journal_mode=WAL")
             db.executescript(SCHEMA)
+        finally:
+            db.close()
 
     def connect(self):
         db = sqlite3.connect(self.root / "integrity.sqlite3", timeout=15)
@@ -46,10 +54,10 @@ class Store:
         return db
 
     @contextmanager
-    def transaction(self):
+    def transaction(self, write=True):
         db = self.connect()
         try:
-            db.execute("BEGIN IMMEDIATE")
+            db.execute("BEGIN IMMEDIATE" if write else "BEGIN")
             yield db
             db.commit()
         except BaseException:
@@ -58,35 +66,63 @@ class Store:
         finally:
             db.close()
 
-    def get(self, db, cls, entity_id: str, scope: str | None = None):
-        row = db.execute("SELECT * FROM objects WHERE id=? AND kind=?", (entity_id, cls.__name__)).fetchone()
+    def execute(self, db, sql, args=()):
+        return db.execute(sql, args)
+
+    def json_value(self, value):
+        return json.dumps(value, ensure_ascii=False)
+
+    @staticmethod
+    def decode(value):
+        return json.loads(value) if isinstance(value, str) else value
+
+    def get(self, db, cls, entity_id, scope=None):
+        row = self.execute(
+            db, f"SELECT * FROM {self.objects_table} WHERE id=? AND kind=?", (entity_id, cls.__name__)
+        ).fetchone()
         if not row or (scope is not None and row["inspection_id"] != scope):
             raise HTTPException(404, f"{cls.__name__} not found in this inspection")
-        return cls.model_validate_json(row["data"])
+        return cls.model_validate(self.decode(row["data"]))
 
-    def list(self, db, cls, scope: str | None = None):
-        sql = "SELECT data FROM objects WHERE kind=?"
+    def list(self, db, cls, scope=None):
+        sql = f"SELECT data FROM {self.objects_table} WHERE kind=?"
         args = [cls.__name__]
         if scope is not None:
             sql += " AND inspection_id=?"
             args.append(scope)
-        return [cls.model_validate_json(r[0]) for r in db.execute(sql + " ORDER BY rowid", args)]
+        return [
+            cls.model_validate(self.decode(r["data"]))
+            for r in self.execute(db, sql + f" ORDER BY {self.object_order}", args)
+        ]
 
-    def save(self, db, obj: Entity, actor: str, reason: str, action: str):
-        row = db.execute("SELECT data,version FROM objects WHERE id=?", (obj.id,)).fetchone()
-        before = json.loads(row["data"]) if row else None
+    def save(self, db, obj: Entity, actor, reason, action):
+        row = self.execute(
+            db, f"SELECT data,version FROM {self.objects_table} WHERE id=?", (obj.id,)
+        ).fetchone()
+        before = self.decode(row["data"]) if row else None
         if row:
             if row["version"] != obj.version:
                 raise HTTPException(409, "Stale version; reload and review changes")
+            previous = obj.version
             obj.version += 1
-            db.execute(
-                "UPDATE objects SET version=?, data=? WHERE id=?",
-                (obj.version, obj.model_dump_json(), obj.id),
+            updated = self.execute(
+                db,
+                f"UPDATE {self.objects_table} SET version=?, data=? WHERE id=? AND version=?",
+                (obj.version, self.json_value(obj.model_dump(mode="json")), obj.id, previous),
             )
+            if updated.rowcount != 1:
+                raise HTTPException(409, "Stale version; reload and review changes")
         else:
-            db.execute(
-                "INSERT INTO objects VALUES (?,?,?,?,?)",
-                (obj.id, type(obj).__name__, obj.inspection_id, obj.version, obj.model_dump_json()),
+            self.execute(
+                db,
+                f"INSERT INTO {self.objects_table}(id,kind,inspection_id,version,data) VALUES (?,?,?,?,?)",
+                (
+                    obj.id,
+                    type(obj).__name__,
+                    obj.inspection_id,
+                    obj.version,
+                    self.json_value(obj.model_dump(mode="json")),
+                ),
             )
         event = ReviewEvent(
             id=str(uuid4()),
@@ -99,16 +135,24 @@ class Store:
             before=before,
             after=obj.model_dump(mode="json"),
         )
-        db.execute(
-            "INSERT INTO review_events(id,inspection_id,entity_id,data) VALUES (?,?,?,?)",
-            (event.id, event.inspection_id, event.entity_id, event.model_dump_json()),
+        self.execute(
+            db,
+            f"INSERT INTO {self.events_table}(id,inspection_id,entity_id,data) VALUES (?,?,?,?)",
+            (event.id, event.inspection_id, event.entity_id, self.json_value(event.model_dump(mode="json"))),
         )
         return obj
 
     def events(self, db, scope):
         return [
-            ReviewEvent.model_validate_json(r[0])
-            for r in db.execute(
-                "SELECT data FROM review_events WHERE inspection_id=? ORDER BY sequence", (scope,)
+            ReviewEvent.model_validate(self.decode(r["data"]))
+            for r in self.execute(
+                db, f"SELECT data FROM {self.events_table} WHERE inspection_id=? ORDER BY sequence", (scope,)
             )
         ]
+
+    def ready(self):
+        with self.transaction(write=False) as db:
+            self.execute(db, f"SELECT id FROM {self.objects_table} LIMIT 1").fetchone()
+
+    def close(self):
+        pass

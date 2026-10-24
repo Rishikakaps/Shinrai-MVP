@@ -29,4 +29,4 @@ GitHub Actions repeats these checks on pushes and pull requests. Tests use tempo
 
 ## Current scope
 
-Read `README.md`, `docs/requirements.md` and `docs/frontend-plan.md` before expanding the application. The backend is implemented; the frontend and shared remote deployment remain unfinished. The source six-page product PDF was unavailable at implementation time. The latest saved live exercise resolved CNC-002 commissioning and retained its earlier unresolved conclusion.
+Read `README.md`, `docs/requirements.md` and `docs/frontend-plan.md` before expanding the application. The backend and connected FastAPI-served frontend are implemented and tested locally. Shared HTTPS deployment and live camera capture remain unverified/deferred. The source six-page product PDF was unavailable at implementation time. The latest saved live exercise resolved CNC-002 commissioning and retained its earlier unresolved conclusion.

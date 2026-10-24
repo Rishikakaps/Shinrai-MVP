@@ -20,3 +20,9 @@ tmp/
 # Download bundle duplicates the committed concept images.
 /output/frontend-layout-options.zip
 /output/labelled-theme-a.zip
+
+!.env.example
+
+.tools/
+
+.run/

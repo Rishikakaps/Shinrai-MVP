@@ -1,0 +1,123 @@
+Capital Deployment Integrity V1
+Inspection: Plant A trial · 2026-10-24T11:09 · fef8
+Site: Plant A
+Review state: review_complete
+Equipment/declared assets, invoices and payment extracts only. Financial statements are contextual; no underwriting or fraud conclusion. Synthetic demo data only.
+Review completion is separate from evidentiary support.
+Current findings:
+CNC-001 / identity: computed=supported; reviewed=supported
+Exact serial with model and site corroboration, accepted by analyst.
+Review reason: Rechecked all listed synthetic conclusions; preserve previous reviewed statuses including both unresolved CNC-003 claims.
+Reviewed by: Trial Analyst; at: 2026-10-24T11:17:02.460204+00:00
+Next action: Review finding and preserve supporting evidence.
+Accepted evidence: 325ae321-2ea2-49de-aeff-bf65ac493e56
+CNC-001 / purchase: computed=supported; reviewed=supported
+Invoice reference and machine identifier match the register/declared asset.
+Review reason: Rechecked all listed synthetic conclusions; preserve previous reviewed statuses including both unresolved CNC-003 claims.
+Reviewed by: Trial Analyst; at: 2026-10-24T11:17:02.469046+00:00
+Next action: Review finding and preserve supporting evidence.
+Accepted evidence: 325ae321-2ea2-49de-aeff-bf65ac493e56, 53364cf1-4724-4742-add3-efca5dd9a14e
+CNC-001 / payment: computed=supported; reviewed=supported
+Accepted payment reference, invoice reference, amount and currency reconcile.
+Review reason: Rechecked all listed synthetic conclusions; preserve previous reviewed statuses including both unresolved CNC-003 claims.
+Reviewed by: Trial Analyst; at: 2026-10-24T11:17:02.477002+00:00
+Next action: Review finding and preserve supporting evidence.
+Accepted evidence: 3868adac-03ff-472b-a778-cc98d96f74e1, 53364cf1-4724-4742-add3-efca5dd9a14e
+CNC-001 / presence: computed=supported; reviewed=supported
+Accepted present evidence tied to this serial identifier.
+Review reason: Rechecked all listed synthetic conclusions; preserve previous reviewed statuses including both unresolved CNC-003 claims.
+Reviewed by: Trial Analyst; at: 2026-10-24T11:17:02.483768+00:00
+Next action: Review finding and preserve supporting evidence.
+Accepted evidence: df9e0fa1-c886-4a05-bcf6-41dcdafb7aad
+CNC-001 / installation: computed=supported; reviewed=supported
+Accepted installed evidence tied to this serial identifier.
+Review reason: Rechecked all listed synthetic conclusions; preserve previous reviewed statuses including both unresolved CNC-003 claims.
+Reviewed by: Trial Analyst; at: 2026-10-24T11:17:02.490108+00:00
+Next action: Review finding and preserve supporting evidence.
+Accepted evidence: df9e0fa1-c886-4a05-bcf6-41dcdafb7aad
+CNC-001 / commissioning: computed=supported; reviewed=supported
+Accepted commissioned evidence tied to this serial identifier.
+Review reason: Rechecked all listed synthetic conclusions; preserve previous reviewed statuses including both unresolved CNC-003 claims.
+Reviewed by: Trial Analyst; at: 2026-10-24T11:17:02.496134+00:00
+Next action: Review finding and preserve supporting evidence.
+Accepted evidence: 5795733f-ad6f-46d3-bc6f-96c0e514c182, df9e0fa1-c886-4a05-bcf6-41dcdafb7aad
+CNC-002 / identity: computed=supported; reviewed=supported
+Exact serial with model and site corroboration, accepted by analyst.
+Review reason: Rechecked all listed synthetic conclusions; preserve previous reviewed statuses including both unresolved CNC-003 claims.
+Reviewed by: Trial Analyst; at: 2026-10-24T11:17:02.502058+00:00
+Next action: Review finding and preserve supporting evidence.
+Accepted evidence: 59b6b7d1-745b-49e4-8d56-0e870bc39c2d
+CNC-002 / purchase: computed=supported; reviewed=supported
+Invoice reference and machine identifier match the register/declared asset.
+Review reason: Rechecked all listed synthetic conclusions; preserve previous reviewed statuses including both unresolved CNC-003 claims.
+Reviewed by: Trial Analyst; at: 2026-10-24T11:17:02.508650+00:00
+Next action: Review finding and preserve supporting evidence.
+Accepted evidence: 59b6b7d1-745b-49e4-8d56-0e870bc39c2d, a81216dd-45cf-413e-b77e-06df8bbab2cd
+CNC-002 / payment: computed=supported; reviewed=supported
+Accepted payment reference, invoice reference, amount and currency reconcile.
+Review reason: Rechecked all listed synthetic conclusions; preserve previous reviewed statuses including both unresolved CNC-003 claims.
+Reviewed by: Trial Analyst; at: 2026-10-24T11:17:02.514761+00:00
+Next action: Review finding and preserve supporting evidence.
+Accepted evidence: 67bacffe-a34d-4017-bea6-6e60b3180787, a81216dd-45cf-413e-b77e-06df8bbab2cd
+CNC-002 / presence: computed=supported; reviewed=supported
+Accepted present evidence tied to this serial identifier.
+Review reason: Rechecked all listed synthetic conclusions; preserve previous reviewed statuses including both unresolved CNC-003 claims.
+Reviewed by: Trial Analyst; at: 2026-10-24T11:17:02.520764+00:00
+Next action: Review finding and preserve supporting evidence.
+Accepted evidence: 5dc5163b-1bcf-4868-9dca-e8c5fa079387
+CNC-002 / installation: computed=supported; reviewed=supported
+Accepted installed evidence tied to this serial identifier.
+Review reason: Rechecked all listed synthetic conclusions; preserve previous reviewed statuses including both unresolved CNC-003 claims.
+Reviewed by: Trial Analyst; at: 2026-10-24T11:17:02.527035+00:00
+Next action: Review finding and preserve supporting evidence.
+Accepted evidence: 5dc5163b-1bcf-4868-9dca-e8c5fa079387
+CNC-002 / commissioning: computed=supported; reviewed=supported
+Accepted commissioned evidence tied to this serial identifier.
+Review reason: Reviewed the accepted synthetic commissioning certificate and its machine identifiers; agree with computed support.
+Reviewed by: Trial Analyst; at: 2026-10-24T11:16:27.559272+00:00
+Next action: Review finding and preserve supporting evidence.
+Accepted evidence: 3a09fd00-e935-4897-9288-ec6ef807495a, 5dc5163b-1bcf-4868-9dca-e8c5fa079387
+CNC-003 / identity: computed=supported; reviewed=supported
+Exact serial with model and site corroboration, accepted by analyst.
+Review reason: Rechecked all listed synthetic conclusions; preserve previous reviewed statuses including both unresolved CNC-003 claims.
+Reviewed by: Trial Analyst; at: 2026-10-24T11:17:02.532981+00:00
+Next action: Review finding and preserve supporting evidence.
+Accepted evidence: c90ee013-1669-418a-87b4-1e3a6b34ecbf
+CNC-003 / purchase: computed=supported; reviewed=supported
+Invoice reference and machine identifier match the register/declared asset.
+Review reason: Rechecked all listed synthetic conclusions; preserve previous reviewed statuses including both unresolved CNC-003 claims.
+Reviewed by: Trial Analyst; at: 2026-10-24T11:17:02.539226+00:00
+Next action: Review finding and preserve supporting evidence.
+Accepted evidence: 3f65ca96-9930-48f6-a79c-4f07af953ca4, c90ee013-1669-418a-87b4-1e3a6b34ecbf
+CNC-003 / payment: computed=supported; reviewed=supported
+Accepted payment reference, invoice reference, amount and currency reconcile.
+Review reason: Rechecked all listed synthetic conclusions; preserve previous reviewed statuses including both unresolved CNC-003 claims.
+Reviewed by: Trial Analyst; at: 2026-10-24T11:17:02.545126+00:00
+Next action: Review finding and preserve supporting evidence.
+Accepted evidence: 2acdfc9c-429b-48d9-b155-f394f4fcfe6a, 3f65ca96-9930-48f6-a79c-4f07af953ca4
+CNC-003 / presence: computed=supported; reviewed=supported
+Accepted present evidence tied to this serial identifier.
+Review reason: Rechecked all listed synthetic conclusions; preserve previous reviewed statuses including both unresolved CNC-003 claims.
+Reviewed by: Trial Analyst; at: 2026-10-24T11:17:02.551088+00:00
+Next action: Review finding and preserve supporting evidence.
+Accepted evidence: 2f413a8f-099d-4f76-bd73-d3aea3dc2c9f
+CNC-003 / installation: computed=unresolved; reviewed=unresolved
+Equipment is packaged; installation requires clarification.
+Review reason: Rechecked all listed synthetic conclusions; preserve previous reviewed statuses including both unresolved CNC-003 claims.
+Reviewed by: Trial Analyst; at: 2026-10-24T11:17:02.557025+00:00
+Next action: Confirm installation using an analyst observation or installation record; clarify packaged equipment.
+Accepted evidence: 2f413a8f-099d-4f76-bd73-d3aea3dc2c9f
+CNC-003 / commissioning: computed=unresolved; reviewed=unresolved
+Commissioning certificate is missing or unaccepted; operation alone is insufficient.
+Review reason: Rechecked all listed synthetic conclusions; preserve previous reviewed statuses including both unresolved CNC-003 claims.
+Reviewed by: Trial Analyst; at: 2026-10-24T11:17:02.563139+00:00
+Next action: Request and review the commissioning certificate for this machine.
+Accepted evidence: 2f413a8f-099d-4f76-bd73-d3aea3dc2c9f
+Follow-up actions:
+resolved: Provide commissioning certificate; Synthetic commissioning certificate received, verified, linked, reconciled and reviewed.
+open: Provide commissioning certificate; 
+open: Clarify installation of packaged equipment; 
+Contextual observations:
+analyst (accepted): Operating at site
+analyst (accepted): Operating at site
+analyst (accepted): Packaged; installation unverified

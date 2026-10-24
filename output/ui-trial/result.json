@@ -1,0 +1,11 @@
+{
+  "inspection_id": "fef8a540-e6fd-4510-9043-16443d3ccd21",
+  "workflow": "Actual browser upload, extraction, original comparison, acceptance, linking, reconciliation, review, follow-up resolution, completion, JSON and report download",
+  "supported": 16,
+  "unresolved": 2,
+  "earlier_unresolved_findings_retained": 2,
+  "review_events": 164,
+  "review_state": "review_complete",
+  "open_follow_ups": 2,
+  "synthetic_only": true
+}

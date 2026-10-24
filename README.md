@@ -1,6 +1,8 @@
 # Capital Deployment Integrity — Working Model V1
 
-Backend-only Japan Day hackathon implementation. FastAPI/Pydantic, SQLite in WAL mode, SHA-256 addressed original evidence files, local PDF extraction and Tesseract OCR. No vision API or frontend is required. A prepared synthetic Plant A inspection exercises all six claim types for three CNC machines.
+Connected Japan Day hackathon POC: a FastAPI/Pydantic backend and a warm, guided four-screen browser app, served by one process. SQLite is the minimal local database; the uploaded backend also adds Postgres/Supabase support. Original evidence is stored persistently by SHA-256. PDF text extraction, Tesseract OCR and manual analyst review work without a vision API. Prepared synthetic Plant A exercises six atomic claims for three CNC machines.
+
+Start with the [connected trial walkthrough](docs/frontend-handoff.md), [deployment guide](docs/backend-deployment.md), and [uploaded backend integration record](docs/imports/2026-10-24-backend-zip.md).
 
 ## Requirements and source status
 
@@ -18,11 +20,14 @@ brew install tesseract poppler
 python3 -m venv .venv
 .venv/bin/python -m pip install -r requirements.lock
 .venv/bin/python scripts/configure.py
-./scripts/run.sh
+.venv/bin/python -m scripts.serve
 ```
 
-The API listens on `127.0.0.1:8000`. `GET /health` is the only public route. The configuration script generates separate random analyst and judge credentials in a private, ignored `.env`; it never overwrites an existing file or prints secrets. All `/api/v1` routes and `/openapi.json` require `Authorization: Bearer <token>`. The judge token permits reads only. Credentials identify the audit author; clients cannot supply an author in request bodies.
+Open **http://127.0.0.1:8000/app** and enter the `CDI_ANALYST_TOKEN` value from the private `.env`. The judge key gives read-only access. The configuration script generates these keys once, retains existing configuration, and never embeds them in browser assets. Browser sign-in uses a persistent opaque session and CSRF protection. API clients can continue using `Authorization: Bearer <token>`.
 
+Choose **Prepare fresh Plant A trial** to begin directly in the browser. Uploading/extracting a certificate does not establish support: confirm, link and reconcile before reviewing the result. The [step-by-step trial](docs/frontend-handoff.md#first-trial) ends with CNC-002 supported and its earlier unresolved finding visible in History.
+
+`/health`, `/ready`, sign-in and static assets are public; inspection data and `/openapi.json` require a valid analyst/judge session or bearer key. All writes require analyst access.
 In another terminal, from this repository:
 
 ```sh
@@ -40,7 +45,7 @@ Use `CDI_ANALYST_TOKEN` or `CDI_JUDGE_TOKEN` from `.env` in an API client. To fe
 curl -H "Authorization: Bearer $CDI_JUDGE_TOKEN" http://127.0.0.1:8000/openapi.json
 ```
 
-A generated [OpenAPI contract](docs/openapi.json) is also checked into the working files. There is no frontend or browser documentation UI. Do not embed analyst secrets in a public frontend bundle. The later UI should obtain credentials through a controlled session or private demo configuration.
+A generated [OpenAPI contract](docs/openapi.json) is also checked into the working files. The browser app is at `/app`; interactive Swagger is disabled. Never put an analyst key in a public bundle or URL.
 
 ## Expected Plant A result
 
@@ -84,9 +89,9 @@ All paths below are under `/api/v1`. UUIDs are returned by creation operations. 
 
 ## Storage, extraction and rules
 
-`CDI_DATA_DIR` defaults to `data/`. It contains `integrity.sqlite3` (plus WAL/SHM while running) and `files/<sha256>`. Both must survive deployment restarts. One host, one service worker, local persistent disk; do not place a WAL database on shared network storage. Related changes and audit events commit in one SQLite transaction. Audit table UPDATE/DELETE operations are rejected by SQLite triggers. File writes are flushed before DB references commit; a crash may leave an unreferenced file, never an intentionally overwritten original.
+`CDI_DATA_DIR` defaults to `data/`. With SQLite it contains `integrity.sqlite3` (plus WAL/SHM while running) and `files/<sha256>`. With `DATABASE_URL`, typed rows and sessions are in Postgres while original files remain in that same persistent directory. Both must survive deployment restarts. One host, one service worker, local persistent disk; do not place a WAL database on shared network storage. Related changes and audit events commit in one database transaction. Audit mutation triggers protect the event table in both database adapters. File writes are flushed before DB references commit; a crash may leave an unreferenced file, never an intentionally overwritten original.
 
-PDF, JPEG, PNG and UTF-8 TXT imports are supported. Limits: 12 MiB per original, 12 PDF pages, 20 megapixels per image. MIME/extension/signature checks reject malformed files; encrypted PDFs are rejected. PDF parsing and OCR run in bounded subprocesses with timeouts, CPU limits, and a Linux memory ceiling. Scanned PDF pages use Poppler then Tesseract. Original bytes are retained even when extraction fails. OCR failure is explicit (`failed`, `incomplete`) and allows analyst correction; it is never fabricated success.
+PDF, JPEG, PNG and UTF-8 TXT imports are supported. Limits: 12 MiB per original, 12 PDF pages, 20 megapixels per image. MIME/extension/signature checks reject malformed files; encrypted PDFs are rejected. PDF parsing and OCR run in bounded subprocesses with timeouts, CPU limits, and a Linux memory ceiling. Scanned PDF pages use Poppler then Tesseract. Forced OCR handles PDFs with a text header over a scanned body. PDF previews are rendered in bounded workers so they also work in browsers without an inline PDF viewer. Original bytes are retained even when extraction fails. OCR failure is explicit (`failed`, `incomplete`) and allows analyst correction; it is never fabricated success.
 
 The deterministic extraction adapter reads simple `field: value` lines for serial, model, site, invoice/payment references, amount/currency and condition fields. Arbitrary invoice layouts, tables, multiple machines per page, and handwriting need manual structuring/correction. Page text and method are retained. Machine-condition judgments come from the analyst, not OCR. Confidence is optional analyst metadata, not a probability of truth. Low quality flags require analyst clarification; flag changes are audited.
 
@@ -107,13 +112,14 @@ Core rules:
 
 ```sh
 .venv/bin/python scripts/configure.py   # once, if .env does not exist
+# Add a private DATABASE_URL for this Postgres Compose setup; see deployment guide.
 docker compose up -d --build
 # Stop/recreate safely; named volume remains:
 docker compose down
 docker compose up -d
 ```
 
-Compose uses a non-root service, read-only application filesystem, bounded temporary storage, one named persistent volume and restart policy. It binds only to host loopback. For the three laptops/judges, put the host behind your team's VPN or an HTTPS reverse proxy with an explicit access allowlist; preserve bearer authentication. Set `CDI_CORS_ORIGINS` to the exact later frontend origins, separated by commas, then restart. CORS does not provide authentication. Never enable wildcard origins or open an unencrypted public demo port. The demo is for synthetic evidence only.
+Compose uses a non-root service, read-only application filesystem, bounded temporary storage, one named persistent volume and restart policy. It binds only to host loopback. For the three laptops/judges, put the host behind your team's VPN or an HTTPS reverse proxy with an explicit access allowlist; preserve bearer authentication. The bundled UI uses the same origin and needs no CORS allowlist. If using a separate client, set `CDI_CORS_ORIGINS` to its exact origins, separated by commas, then restart. CORS does not provide authentication. Never enable wildcard origins or open an unencrypted public demo port. The demo is for synthetic evidence only.
 
 No external host was provided, so no remote service was deployed. Docker configuration is supplied, but the local Docker daemon was unavailable and the container build/run was not verified. Actual native Uvicorn startup and restart were verified separately.
 
@@ -142,13 +148,13 @@ set +a
 
 See [test and live verification evidence](docs/verification.md), [actual HTTP result](output/verification.json), [sample assessment](output/plant-a-report.txt), and [complete synthetic export](output/plant-a-export.json).
 
-Limits: single-team demo tokens, no multi-tenant permission model or login UI; no vision inference, smart-glasses stream, full financial underwriting, autonomous fraud detection, malware scanner, forensic audit ledger, remote hosting, or frontend. A DB/file administrator can alter storage; digest checks and API audit immutability are not a substitute for externally anchored records. The current test stack emits one non-failing Starlette warning about its future HTTP client migration.
+Limits: single-team demo tokens, no multi-tenant permission model; no vision inference, smart-glasses stream, full financial underwriting, autonomous fraud detection, malware scanner, forensic audit ledger, or verified remote hosting. A DB/file administrator can alter storage; digest checks and API audit immutability are not a substitute for externally anchored records. The current test stack emits one non-failing Starlette warning about its future HTTP client migration.
 
 ## Latest live demo change
 
 The subsequent user-requested certificate acceptance test resolved CNC-002 commissioning using a clearly labeled synthetic PDF. Upload/extraction alone left it unresolved; analyst acceptance and reconciliation changed it to supported while preserving the previous finding. The live Plant A inspection now has **16 supported / 2 unresolved** claims. See [test results](output/certificate-flow/result.json) and [updated assessment](output/certificate-flow/assessment-after.txt). The earlier 15/3 export is retained as the original baseline.
 
-The [frontend functional plan](docs/frontend-plan.md) maps six views to the tested API and defines the first clickable demonstration. No frontend code has been created yet.
+The [connected frontend guide](docs/frontend-handoff.md) describes the implemented four-screen browser app. It combines the earlier functional plan into Overview, Evidence, Site inspection and Assessment, with shared Requests/Activity/History trays. The actual browser trial and exports are saved in [output/ui-trial](output/ui-trial/).
 
 ## Source control and future updates
 

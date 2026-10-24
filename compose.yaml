@@ -5,6 +5,10 @@ services:
     env_file: .env
     environment:
       CDI_DATA_DIR: /data
+      DATABASE_URL: ${DATABASE_URL:?Set the Supabase session-pooler DATABASE_URL in .env}
+      CDI_AUTO_MIGRATE: ${CDI_AUTO_MIGRATE:-true}
+      CDI_REQUIRE_POSTGRES: "true"
+      CDI_REQUIRE_OCR: "true"
     ports:
       - "127.0.0.1:8000:8000"
     volumes:
@@ -16,5 +20,15 @@ services:
     security_opt: [no-new-privileges:true]
     mem_limit: 1536m
     cpus: 2
+  ngrok:
+    image: ngrok/ngrok:latest
+    profiles: [tunnel]
+    restart: unless-stopped
+    command: ["http", "backend:8000"]
+    environment:
+      NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN:-}
+    depends_on:
+      backend:
+        condition: service_healthy
 volumes:
   evidence-data:

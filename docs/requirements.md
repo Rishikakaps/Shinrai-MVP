@@ -5,7 +5,7 @@
 - Authoritative available baseline: the user's detailed backend-first implementation request on 24 October 2026, including explicit financial/vision/access choices.
 - Referenced chat `6adc3738-2d04-83ee-8377-3564d5bcd673` was read. It contains the selection of focused core with contextual insights, financial verification A, vision API A, controlled deployment A, team/time constraints, and backend-first instruction. Its assistant answers are only opaque content references; their frozen specification cannot be recovered from the read tool.
 - The uploaded six-page `/mnt/data/japanday hackathon .pdf` is not mounted in this workspace; the project's `sources/` directory is empty. No claims of PDF compliance are made. Once it is available, compare it to this baseline and record any required changes before expanding V1.
-- No frontend requirements were assumed. No model switch was performed.
+- The initial backend baseline did not assume a frontend. The user subsequently specified four guided screens, a softer D theme, collapsible panels, scrollable tables and sequential entry. These are implemented in the connected browser app. No model switch was performed.
 
 ## Minimal architecture and rationale
 
@@ -45,4 +45,8 @@ Follow-up: `open ↔ resolved`. Neither state proves a claim. Resolution does no
 
 ## Deferred items
 
-Frontend structure comes from the user later. Phone/webcam smart-glasses simulation and optional AI condition inference are deliberately deferred. Financial statements remain contextual reference; no underwriting. Product-PDF comparison remains pending source availability. Remote deployment requires a user-controlled destination; none was supplied.
+The connected frontend follows the user’s subsequent structure and visual instructions; see `frontend-handoff.md`. Phone/webcam smart-glasses simulation and optional AI condition inference are deliberately deferred. Financial statements remain contextual reference; no underwriting. Product-PDF comparison remains pending source availability. Remote deployment requires a user-controlled destination; none was supplied.
+
+## Connected V1 scope update
+
+The backend ZIP and browser UI are integrated, with SQLite native operation and an optional Postgres adapter. See [deployment](backend-deployment.md) and [frontend behavior](frontend-handoff.md). V1 includes saved-photo inspection, document review, claim reconciliation, follow-ups, audit and report export. Live camera/glasses capture, optional model inference, generic ingestion automation and shared hosted deployment remain later work; no V2 feature commitment is implied.

@@ -9,6 +9,7 @@ import os
 from pathlib import Path
 
 import httpx
+from dotenv import load_dotenv
 
 from app.models import now
 from scripts.demo import PREFIX, accept, link, ok, pdf_bytes, upload
@@ -139,6 +140,7 @@ def run(client, output):
 
 
 def main():
+    load_dotenv(Path(__file__).resolve().parents[1] / ".env", override=False)
     parser = argparse.ArgumentParser()
     parser.add_argument("--url", default="http://127.0.0.1:8000")
     parser.add_argument("--output", type=Path, default=Path("output/certificate-flow"))

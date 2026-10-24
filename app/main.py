@@ -3,8 +3,11 @@ import hmac
 import io
 import json
 import os
+import shutil
 import subprocess
 import sys
+import tempfile
+from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated
@@ -16,6 +19,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from PIL import Image, UnidentifiedImageError
 
 from app import engine
+from app.browser_auth import BrowserSessions
 from app.extraction import MAX_BYTES, extract, parse_facts
 from app.models import (
     Asset,
@@ -28,6 +32,7 @@ from app.models import (
     EvidenceCorrection,
     EvidenceKind,
     EvidenceLink,
+    ExtractionRequest,
     Finding,
     FindingReview,
     FollowUpAction,
@@ -47,6 +52,7 @@ from app.models import (
     now,
 )
 from app.store import Store
+from app.web import install_ui
 
 bearer = HTTPBearer(auto_error=False)
 
@@ -129,7 +135,9 @@ def validate_file(content, filename, content_type):
     return types[suffix]
 
 
-def create_app(data_dir: Path | str | None = None, tokens: dict | None = None) -> FastAPI:
+def create_app(
+    data_dir: Path | str | None = None, tokens: dict | None = None, database_url: str | None = None
+) -> FastAPI:
     tokens = tokens if tokens is not None else json.loads(os.environ.get("CDI_TOKENS", "{}"))
     if not tokens or any(
         len(key) < 32
@@ -143,22 +151,44 @@ def create_app(data_dir: Path | str | None = None, tokens: dict | None = None) -
     origins = [x.strip() for x in os.environ.get("CDI_CORS_ORIGINS", "").split(",") if x.strip()]
     if "*" in origins:
         raise RuntimeError("Use explicit CORS origins")
-    store = Store(Path(data_dir or os.environ.get("CDI_DATA_DIR", "data")))
+    root = Path(data_dir or os.environ.get("CDI_DATA_DIR", "data"))
+    url = database_url if database_url is not None else os.environ.get("DATABASE_URL", "").strip()
+    if not url and os.environ.get("CDI_REQUIRE_POSTGRES", "").lower() in ("1", "true"):
+        raise RuntimeError("DATABASE_URL is required for this deployment")
+    if url:
+        from app.postgres import PostgresStore
+
+        store = PostgresStore(
+            root, url, migrate=os.environ.get("CDI_AUTO_MIGRATE", "").lower() in ("1", "true")
+        )
+    else:
+        store = Store(root)
+
+    @asynccontextmanager
+    async def lifespan(_app):
+        try:
+            yield
+        finally:
+            store.close()
+
     app = FastAPI(
         title="Capital Deployment Integrity V1",
-        version="0.1.0",
+        version="0.2.0",
         docs_url=None,
         redoc_url=None,
         openapi_url=None,
+        lifespan=lifespan,
     )
     app.state.store = store
+    sessions = BrowserSessions(store, tokens)
+    app.state.browser_sessions = sessions
     app.add_middleware(BodyLimit)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=origins,
         allow_credentials=False,
         allow_methods=["GET", "POST", "PATCH"],
-        allow_headers=["Authorization", "Content-Type"],
+        allow_headers=["Authorization", "Content-Type", "ngrok-skip-browser-warning"],
     )
 
     def authenticate(
@@ -167,10 +197,18 @@ def create_app(data_dir: Path | str | None = None, tokens: dict | None = None) -
         principal = None
         if credentials and credentials.scheme.lower() == "bearer":
             for token, value in tokens.items():
-                if hmac.compare_digest(token, credentials.credentials):
+                if hmac.compare_digest(token.encode("utf-8"), credentials.credentials.encode("utf-8")):
                     principal = value
+        if principal is None and credentials is None:
+            session = sessions.read(request)
+            if session:
+                if request.method not in ("GET", "HEAD", "OPTIONS"):
+                    sessions.validate_write(request, session)
+                principal = session
         if principal is None:
-            raise HTTPException(401, "Valid bearer token required", headers={"WWW-Authenticate": "Bearer"})
+            raise HTTPException(
+                401, "Valid bearer token or browser session required", headers={"WWW-Authenticate": "Bearer"}
+            )
         if request.method not in ("GET", "HEAD", "OPTIONS") and principal["role"] != "analyst":
             raise HTTPException(403, "Judge access is read-only")
         return principal["actor"]
@@ -209,8 +247,15 @@ def create_app(data_dir: Path | str | None = None, tokens: dict | None = None) -
                     raise HTTPException(409, "Concurrent file integrity conflict")
         return digest
 
+    def effective_inspection(db, item):
+        if item.state == "review_complete" and len(engine.current_findings(store, db, item.id)) != len(
+            store.list(db, Claim, item.id)
+        ):
+            return item.model_copy(update={"state": "active"})
+        return item
+
     def get_report(db, iid):
-        item = inspection(db, iid)
+        item = effective_inspection(db, inspection(db, iid))
         current = engine.current_findings(store, db, iid)
         # Detect external file corruption even after review completion.
         claims = store.list(db, Claim, iid)
@@ -235,6 +280,32 @@ def create_app(data_dir: Path | str | None = None, tokens: dict | None = None) -
     def health() -> dict[str, str]:
         return {"status": "ok"}
 
+    @app.get("/ready")
+    def readiness() -> dict:
+        try:
+            store.ready()
+            with tempfile.TemporaryFile(dir=store.files) as probe:
+                probe.write(b"ready")
+            if os.environ.get("CDI_REQUIRE_OCR", "").lower() in ("1", "true") and not shutil.which(
+                "tesseract"
+            ):
+                raise RuntimeError("OCR unavailable")
+        except Exception as exc:
+            raise HTTPException(503, "Database, evidence storage or required OCR is unavailable") from exc
+        return {"status": "ready", "database": store.backend}
+
+    @router.get("/meta")
+    def metadata() -> dict:
+        return {
+            "api_version": "v1",
+            "database": store.backend,
+            "claim_kinds": [k.value for k in ClaimKind],
+            "max_original_bytes": MAX_BYTES,
+            "ocr_available": bool(shutil.which("tesseract")),
+            "originals": "persistent_local_files",
+            "force_pdf_ocr": True,
+        }
+
     @app.get("/openapi.json", dependencies=[Depends(authenticate)])
     def openapi_schema() -> dict:
         return app.openapi()
@@ -248,18 +319,13 @@ def create_app(data_dir: Path | str | None = None, tokens: dict | None = None) -
 
     @router.get("/inspections", response_model=list[Inspection])
     def list_inspections():
-        with store.transaction() as db:
-            return store.list(db, Inspection)
+        with store.transaction(write=False) as db:
+            return [effective_inspection(db, item) for item in store.list(db, Inspection)]
 
     @router.get("/inspections/{iid}", response_model=Inspection)
     def get_inspection(iid: str):
-        with store.transaction() as db:
-            item = inspection(db, iid)
-            if item.state == "review_complete" and len(engine.current_findings(store, db, iid)) != len(
-                store.list(db, Claim, iid)
-            ):
-                item.state = "active"
-            return item
+        with store.transaction(write=False) as db:
+            return effective_inspection(db, inspection(db, iid))
 
     @router.post("/inspections/{iid}/assets", response_model=Asset, status_code=201)
     def create_asset(iid: str, body: AssetCreate, actor: Actor):
@@ -319,7 +385,7 @@ def create_app(data_dir: Path | str | None = None, tokens: dict | None = None) -
 
     @router.get("/inspections/{iid}/claims", response_model=list[Claim])
     def list_claims(iid: str):
-        with store.transaction() as db:
+        with store.transaction(write=False) as db:
             inspection(db, iid)
             return store.list(db, Claim, iid)
 
@@ -385,18 +451,18 @@ def create_app(data_dir: Path | str | None = None, tokens: dict | None = None) -
 
     @router.get("/inspections/{iid}/evidence", response_model=list[Evidence])
     def list_evidence(iid: str):
-        with store.transaction() as db:
+        with store.transaction(write=False) as db:
             inspection(db, iid)
             return store.list(db, Evidence, iid)
 
     @router.get("/inspections/{iid}/evidence/{eid}", response_model=Evidence)
     def get_evidence(iid: str, eid: str):
-        with store.transaction() as db:
+        with store.transaction(write=False) as db:
             return store.get(db, Evidence, eid, iid)
 
     @router.get("/inspections/{iid}/evidence/{eid}/original")
     def original(iid: str, eid: str):
-        with store.transaction() as db:
+        with store.transaction(write=False) as db:
             item = store.get(db, Evidence, eid, iid)
             if not engine.intact(store, item):
                 raise HTTPException(409, "Original integrity check failed")
@@ -408,12 +474,12 @@ def create_app(data_dir: Path | str | None = None, tokens: dict | None = None) -
             )
 
     @router.post("/inspections/{iid}/evidence/{eid}/extract", response_model=Evidence)
-    def extract_evidence(iid: str, eid: str, body: Reason, actor: Actor):
+    def extract_evidence(iid: str, eid: str, body: ExtractionRequest, actor: Actor):
         with store.transaction() as db:
             item = store.get(db, Evidence, eid, iid)
             if not engine.intact(store, item):
                 raise HTTPException(409, "Original integrity check failed")
-        result = extract(store.files / item.sha256, item.media_type)
+        result = extract(store.files / item.sha256, item.media_type, force_ocr=body.force_ocr)
         facts, parse_flags = parse_facts(result["text"])
         with store.transaction() as db:
             fresh = store.get(db, Evidence, eid, iid)
@@ -514,7 +580,7 @@ def create_app(data_dir: Path | str | None = None, tokens: dict | None = None) -
 
     @router.get("/inspections/{iid}/mission", response_model=Mission)
     def mission(iid: str):
-        with store.transaction() as db:
+        with store.transaction(write=False) as db:
             inspection(db, iid)
             claims = {c.id: c for c in store.list(db, Claim, iid)}
             findings = engine.current_findings(store, db, iid)
@@ -594,24 +660,24 @@ def create_app(data_dir: Path | str | None = None, tokens: dict | None = None) -
 
     @router.get("/inspections/{iid}/follow-ups", response_model=list[FollowUpAction])
     def follow_ups(iid: str):
-        with store.transaction() as db:
+        with store.transaction(write=False) as db:
             inspection(db, iid)
             return store.list(db, FollowUpAction, iid)
 
     @router.get("/inspections/{iid}/review-events", response_model=list[ReviewEvent])
     def events(iid: str):
-        with store.transaction() as db:
+        with store.transaction(write=False) as db:
             inspection(db, iid)
             return store.events(db, iid)
 
     @router.get("/inspections/{iid}/export", response_model=Report)
     def export(iid: str):
-        with store.transaction() as db:
+        with store.transaction(write=False) as db:
             return get_report(db, iid)
 
     @router.get("/inspections/{iid}/report", response_class=PlainTextResponse)
     def report(iid: str):
-        with store.transaction() as db:
+        with store.transaction(write=False) as db:
             snapshot = get_report(db, iid)
         claims = {c.id: c for c in snapshot.claims}
         assets = {a.id: a for a in snapshot.assets}
@@ -634,14 +700,27 @@ def create_app(data_dir: Path | str | None = None, tokens: dict | None = None) -
                     f"reviewed={finding.reviewed_status or 'pending'}"
                 ),
                 finding.explanation,
+                "Review reason: " + (finding.review_reason or "Pending analyst review"),
+                "Reviewed by: "
+                + (finding.reviewed_by or "pending")
+                + "; at: "
+                + (finding.reviewed_at or "pending"),
                 "Next action: " + finding.next_best_action,
                 "Accepted evidence: " + ", ".join(finding.evidence_ids),
             ]
         lines += ["Follow-up actions:"] + [
             f"{a.state}: {a.request}; {a.resolution or ''}" for a in snapshot.follow_ups
         ]
-        lines += ["Contextual observations:"] + [f"{o.source}: {o.text}" for o in snapshot.observations]
+        current_evidence = {e.id: e for e in snapshot.evidence}
+        lines += ["Contextual observations:"]
+        for observation in snapshot.observations:
+            ev = current_evidence[observation.evidence_id]
+            label = "accepted" if ev.confirmed else "unconfirmed"
+            lines.append(f"{observation.source} ({label}): {ev.text}")
+            if ev.text != observation.text:
+                lines.append("Original observation superseded; see audit history.")
         return "\n".join(lines) + "\n"
 
     app.include_router(router)
+    install_ui(app, store, sessions, authenticate)
     return app

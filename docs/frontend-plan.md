@@ -1,6 +1,6 @@
 # Frontend V1 proposal — built around the tested backend
 
-This is a functional build plan, not an approved visual design. No frontend code is created by this plan.
+Historical functional plan. The connected four-screen implementation now combines these views, following the user’s later softened D design instructions. See [the implemented frontend and first trial](frontend-handoff.md). The six-view table below records the original capability grouping, not six required pages.
 
 ## Verified demonstration to make visible
 

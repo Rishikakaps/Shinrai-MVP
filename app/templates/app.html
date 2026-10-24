@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="csrf-token" content="{{ viewer.csrf }}">
+  <title>Plant inspection · Capital Integrity</title>
+  <link rel="stylesheet" href="/static/app.css"><script src="/static/app.js" defer></script>
+</head>
+<body data-role="{{ viewer.role }}">
+  <a class="skip-link" href="#workspace">Skip to the current task</a>
+  <header class="app-header">
+    <a href="#/overview" class="brand">Capital Integrity</a>
+    <label class="inspection-picker"><span class="sr-only">Current inspection</span><select id="inspection-picker" aria-label="Current inspection"><option>Loading inspections…</option></select></label>
+    <span class="identity">{{ viewer.actor }} <span class="role-label">{{ viewer.role }}</span></span>
+    <button id="logout" class="quiet">Sign out</button>
+  </header>
+  <nav class="nav-rail" aria-label="Main navigation">
+    <a href="#/overview" data-view="overview"><span aria-hidden="true">⌂</span><span>Overview</span></a>
+    <a href="#/evidence" data-view="evidence"><span aria-hidden="true">▤</span><span>Evidence</span></a>
+    <a href="#/site" data-view="site"><span aria-hidden="true">⌖</span><span>Site inspection</span></a>
+    <a href="#/assessment" data-view="assessment"><span aria-hidden="true">✓</span><span>Assessment</span></a>
+    <button id="nav-toggle" class="quiet nav-expand" aria-expanded="false">Expand ›</button>
+  </nav>
+  <div id="message" class="message" role="status" aria-live="polite" hidden></div>
+  <main id="workspace" tabindex="-1"><p class="loading">Opening your inspection…</p></main>
+  <button id="details-toggle" class="details-handle" aria-expanded="false" aria-controls="context-drawer">Details ‹</button>
+  <aside id="context-drawer" class="context-drawer" aria-label="Selected claim details" hidden></aside>
+  <section class="bottom-tray" aria-label="Activity and history">
+    <div class="tray-tabs" role="tablist" aria-label="Inspection records">
+      <button role="tab" aria-selected="false" aria-expanded="false" data-tray="activity" id="tab-activity" aria-controls="tray-panel">⌃ Activity</button>
+      <button role="tab" aria-selected="false" aria-expanded="false" data-tray="requests" id="tab-requests" aria-controls="tray-panel">⌃ Requests</button>
+      <button role="tab" aria-selected="false" aria-expanded="false" data-tray="history" id="tab-history" aria-controls="tray-panel">⌃ History</button>
+      <button id="tray-close" class="quiet" hidden>⌄ Collapse</button>
+    </div>
+    <div id="tray-panel" class="tray-panel" role="tabpanel" hidden></div>
+  </section>
+  <dialog id="review-dialog" aria-labelledby="review-dialog-title"><div id="review-dialog-content"></div></dialog>
+</body>
+</html>

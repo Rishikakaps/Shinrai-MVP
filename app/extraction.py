@@ -13,10 +13,10 @@ MAX_BYTES = 12 * 1024 * 1024
 MAX_PAGES = 12
 
 
-def extract(path: Path, media_type: str):
+def extract(path: Path, media_type: str, force_ocr: bool = False):
     try:
         proc = subprocess.run(
-            [sys.executable, "-m", "app.extraction", str(path), media_type],
+            [sys.executable, "-m", "app.extraction", str(path), media_type, "1" if force_ocr else "0"],
             capture_output=True,
             text=True,
             timeout=55,
@@ -49,20 +49,16 @@ def ocr(image):
     import pytesseract
 
     text = pytesseract.image_to_string(image, config="--psm 6", timeout=18)
-    return text[:100000]
+    return text
 
 
-def worker(path, media_type):
-    import resource
-
+def worker(path, media_type, force_ocr=False):
     from PIL import Image
     from pypdf import PdfReader
 
-    # Linux enforces a virtual-memory ceiling; macOS enforces CPU/file bounds.
-    resource.setrlimit(resource.RLIMIT_CPU, (45, 45))
-    resource.setrlimit(resource.RLIMIT_FSIZE, (64 * 1024 * 1024, 64 * 1024 * 1024))
-    if sys.platform == "linux":
-        resource.setrlimit(resource.RLIMIT_AS, (1024 * 1024 * 1024, 1024 * 1024 * 1024))
+    from app.limits import apply_limits
+
+    apply_limits(45, 1024 * 1024 * 1024)
     pages, flags = [], []
     if media_type == "application/pdf":
         reader = PdfReader(path, strict=True)
@@ -74,7 +70,9 @@ def worker(path, media_type):
                 raise ValueError("Expanded content exceeds limit")
             text = (page.extract_text() or "").strip()
             method = "pdf_text"
-            if not text:
+            if text and len(text) < 200 and list(page.images) and not force_ocr:
+                flags.append("incomplete")
+            if not text or force_ocr:
                 # Render with Poppler then OCR, rather than pretending PDF text extraction is OCR.
                 import tempfile
 
@@ -101,6 +99,10 @@ def worker(path, media_type):
                     with Image.open(prefix + ".png") as image:
                         text = ocr(image)
                 method = "tesseract"
+            if len(text) > 100000:
+                flags.append("incomplete")
+            if not text.strip() and len(reader.pages) > 1:
+                flags.append("incomplete")
             pages.append({"page": number, "text": text[:100000], "method": method})
     elif media_type.startswith("image/"):
         with Image.open(path) as image:
@@ -124,4 +126,4 @@ def worker(path, media_type):
 
 
 if __name__ == "__main__":
-    print(json.dumps(worker(Path(sys.argv[1]), sys.argv[2])))
+    print(json.dumps(worker(Path(sys.argv[1]), sys.argv[2], len(sys.argv) > 3 and sys.argv[3] == "1")))

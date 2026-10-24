@@ -11,12 +11,14 @@ import time
 from pathlib import Path
 
 import httpx
+from dotenv import load_dotenv
 
 from app.models import now
 from scripts.demo import PREFIX, ok, seed
 
 
 def main():
+    load_dotenv(Path(__file__).resolve().parents[1] / ".env", override=False)
     root = Path(__file__).resolve().parents[1]
     output = root / "output"
     output.mkdir(exist_ok=True)
@@ -63,7 +65,7 @@ def main():
         def stop(process):
             process.terminate()
             process.wait(timeout=15)
-            assert process.returncode in (0, -signal.SIGTERM)
+            assert process.returncode in ((0, 1) if os.name == "nt" else (0, -signal.SIGTERM))
 
         try:
             process = start()
