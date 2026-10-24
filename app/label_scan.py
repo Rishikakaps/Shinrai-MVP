@@ -2,21 +2,25 @@
 
 import io
 import json
-import re
 import subprocess
 import sys
 from pathlib import Path
+from threading import BoundedSemaphore
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, Request
 from fastapi.responses import Response
 
 from app import engine
+from app.identifiers import compare_scan, parse_fields
 from app.models import Asset, Evidence, Inspection, Reason
 
 
 class ScanRequest(Reason):
     asset_id: str | None = None
+
+
+SCAN_SLOTS = BoundedSemaphore(2)
 
 
 def inspect_image(path):
@@ -54,11 +58,8 @@ def inspect_image(path):
             ocr_available = True
         except (RuntimeError, pytesseract.TesseractNotFoundError):
             text, ocr_available = "", False
-        serials = re.findall(
-            r"(?:serial(?:\s*(?:no\.?|number))?|s/n)\s*[:#=]?\s*([A-Za-z0-9][A-Za-z0-9_./-]{2,80})",
-            text,
-            re.IGNORECASE,
-        )
+        fields = parse_fields(text)
+        serials = fields["serial"]
         serials = list(dict.fromkeys(serials + [c["text"] for c in codes]))[:20]
         if not codes:
             flags.append("barcode_not_decoded")
@@ -68,6 +69,7 @@ def inspect_image(path):
             "codes": codes[:20],
             "serial_suggestions": serials,
             "ocr_text": text,
+            "ocr_fields": fields,
             "ocr_available": ocr_available,
             "quality_flags": flags,
             "width": width,
@@ -76,6 +78,10 @@ def inspect_image(path):
 
 
 def scan_file(path):
+    if not SCAN_SLOTS.acquire(blocking=False):
+        raise HTTPException(
+            429, "Scanner is busy; the saved source can be processed again", headers={"Retry-After": "2"}
+        )
     try:
         result = subprocess.run(
             [sys.executable, "-m", "app.label_scan", str(path)], capture_output=True, timeout=28, check=True
@@ -86,6 +92,8 @@ def scan_file(path):
             422,
             "Label could not be decoded safely. The original is saved; rescan or use reviewed manual correction.",
         ) from exc
+    finally:
+        SCAN_SLOTS.release()
 
 
 def install_label_scan(app, store, authenticate):
@@ -130,14 +138,14 @@ def install_label_scan(app, store, authenticate):
                 raise HTTPException(409, "Original evidence integrity failed")
             asset = store.get(db, Asset, body.asset_id, iid) if body.asset_id else None
         result = scan_file(store.files / ev.sha256)
-        values = {v.strip().casefold() for v in result["serial_suggestions"]}
-        match = "not_read" if not values else "unconfirmed"
-        if asset and values:
-            match = (
-                "matches_declared_serial"
-                if asset.serial.strip().casefold() in values
-                else "differs_from_declared_serial"
-            )
+        comparison = compare_scan(result, {k: getattr(asset, k, None) for k in ("serial", "model", "site")})
+        match = {
+            "MATCH_CANDIDATE": "matches_declared_serial",
+            "IDENTIFIER_MISMATCH": "differs_from_declared_serial",
+            "NO_IDENTIFIER_FOUND": "not_read",
+            "UNREADABLE_OR_BLURRED": "not_read",
+        }.get(comparison["decision"], comparison["decision"].lower())
+        result.update(comparison)
         result.update(
             evidence_id=eid,
             identity_result=match,

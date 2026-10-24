@@ -1,10 +1,13 @@
 """FastAPI-served browser UI, controlled sign-in, and non-destructive synthetic trial helpers."""
 
 import hmac
+import logging
 import re
 import secrets
+import time
 from pathlib import Path
 from typing import Annotated
+from uuid import uuid4
 
 from fastapi import Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
@@ -26,7 +29,21 @@ def install_ui(app, store, sessions, authenticate):
 
     @app.middleware("http")
     async def browser_headers(request, call_next):
+        request_id = request.headers.get("X-Request-ID", "")
+        if not re.fullmatch(r"[A-Za-z0-9_-]{1,64}", request_id):
+            request_id = uuid4().hex
+        request.state.request_id = request_id
+        started = time.monotonic()
         response = await call_next(request)
+        response.headers["X-Request-ID"] = request_id
+        logging.getLogger("uvicorn.error").info(
+            "request_id=%s method=%s path=%s status=%s ms=%s",
+            request_id,
+            request.method,
+            request.url.path,
+            response.status_code,
+            round((time.monotonic() - started) * 1000),
+        )
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["Referrer-Policy"] = "same-origin"
         response.headers["X-Frame-Options"] = "SAMEORIGIN"
@@ -45,7 +62,7 @@ def install_ui(app, store, sessions, authenticate):
         response = templates.TemplateResponse(
             request=request,
             name="login.html",
-            context={"nonce": nonce, "error": error},
+            context={"nonce": nonce, "error": error, "next_page": request.query_params.get("next", "/app")},
             status_code=status_code,
         )
         response.set_cookie(
@@ -65,7 +82,10 @@ def install_ui(app, store, sessions, authenticate):
     @app.get("/login", response_class=HTMLResponse, include_in_schema=False)
     def sign_in(request: Request):
         if sessions.read(request):
-            return RedirectResponse("/app", status_code=303)
+            target = request.query_params.get("next", "/app")
+            return RedirectResponse(
+                target if target in {"/app", "/field-test", "/backend-test"} else "/app", status_code=303
+            )
         return login_page(request)
 
     @app.post("/login", include_in_schema=False)
@@ -73,6 +93,7 @@ def install_ui(app, store, sessions, authenticate):
         request: Request,
         token: Annotated[str, Form(max_length=512)],
         nonce: Annotated[str, Form(max_length=200)],
+        next_page: Annotated[str, Form(max_length=100)] = "/app",
     ):
         cookie = request.cookies.get("cdi_login_nonce", "")
         origin = request.headers.get("origin")
@@ -87,7 +108,9 @@ def install_ui(app, store, sessions, authenticate):
             return login_page(
                 request, "That access key was not recognized. Check the analyst or judge key.", 401
             )
-        response = RedirectResponse("/app", status_code=303)
+        response = RedirectResponse(
+            next_page if next_page in {"/app", "/field-test", "/backend-test"} else "/app", status_code=303
+        )
         response.delete_cookie("cdi_login_nonce")
         response.set_cookie(
             COOKIE,
@@ -123,6 +146,15 @@ def install_ui(app, store, sessions, authenticate):
         if session is None:
             return RedirectResponse("/login", status_code=303)
         return templates.TemplateResponse(request=request, name="v2_test.html", context={"viewer": session})
+
+    @app.get("/field-test", response_class=HTMLResponse, include_in_schema=False)
+    def field_test(request: Request):
+        session = sessions.read(request)
+        if session is None:
+            return RedirectResponse("/login?next=/field-test", status_code=303)
+        return templates.TemplateResponse(
+            request=request, name="field_test.html", context={"viewer": session}
+        )
 
     @app.post("/api/v1/demo/prepare", response_model=Inspection)
     def new_trial(body: Reason, actor: Actor):

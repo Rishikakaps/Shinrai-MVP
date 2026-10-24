@@ -251,7 +251,7 @@ class InvestmentReview(Scoped):
 
 class ClosureCreate(Change):
     inspection_id: str
-    physical_asset_id: str
+    physical_asset_id: str | None = None
     claim_id: str | None = None
     project_id: str | None = None
     request: Text
@@ -274,7 +274,7 @@ class ClosureCreate(Change):
 
 class FollowUpContext(Scoped):
     follow_up_id: str
-    physical_asset_id: str
+    physical_asset_id: str | None = None
     project_id: str | None = None
     contact: str
     reviewer: str
@@ -306,7 +306,7 @@ class ClosureEdit(ClosureCreate, Revision):
 
 class InterviewCreate(Change):
     inspection_id: str
-    physical_asset_id: str
+    physical_asset_id: str | None = None
     project_id: str | None = None
     speaker_label: Short
     speaker_confirmed: bool = False
@@ -316,7 +316,7 @@ class InterviewCreate(Change):
 
 
 class InterviewSession(Scoped):
-    physical_asset_id: str
+    physical_asset_id: str | None = None
     project_id: str | None = None
     speaker_label: str
     speaker_confirmed: bool = False
@@ -362,6 +362,8 @@ class TranscriptSegment(Scoped):
     provider: str | None = None
     source_revision: int = 1
     final: bool = True
+    provider_text: str | None = None
+    provider_translation: str | None = None
 
 
 class SegmentUpdate(SegmentCreate, Revision):
@@ -420,12 +422,13 @@ class CopilotAnalysis(Scoped):
 class ExtractedCandidate(Scoped):
     segment_id: str
     segment_version: int
-    physical_asset_id: str
+    physical_asset_id: str | None = None
     project_id: str | None = None
     payload: CandidatePayload
     review_status: Literal["pending", "accepted", "rejected", "stale"] = "pending"
     destination_id: str | None = None
     accepted_payload: CandidatePayload | None = None
+    source_current: bool = True
 
 
 class CandidateConfirmation(Revision):
@@ -442,7 +445,8 @@ class CandidateEdit(Revision):
 
 
 class StatementRecord(Scoped):
-    physical_asset_id: str
+    physical_asset_id: str | None = None
+    requires_review: bool = False
     project_id: str | None = None
     text: str
     source: Source
@@ -453,7 +457,11 @@ class StatementRecord(Scoped):
 
 
 class AudioRecording(Scoped):
-    physical_asset_id: str
+    speaker_label: str | None = None
+    physical_asset_id: str | None = None
+    field_session_id: str | None = None
+    processing_state: str = "PERSISTED"
+    processing_error: str | None = None
     capture_type: Literal["machine_acoustic", "interview_speech", "inspector_voice_note"]
     filename: str
     sha256: str
@@ -482,8 +490,10 @@ class AudioRecording(Scoped):
 
 
 class AudioUpload(Model):
+    speaker_label: Short | None = None
     inspection_id: str
-    physical_asset_id: str
+    physical_asset_id: str | None = None
+    field_session_id: str | None = None
     capture_type: Literal["machine_acoustic", "interview_speech", "inspector_voice_note"]
     captured_at: datetime
     device: Short
@@ -504,6 +514,8 @@ class AudioUpload(Model):
 
     @model_validator(mode="after")
     def capture_checks(self):
+        if self.capture_type == "machine_acoustic" and not self.physical_asset_id:
+            raise ValueError("Machine acoustic recording requires a confirmed physical machine")
         from datetime import UTC
 
         if not self.captured_at.tzinfo or self.captured_at > datetime.now(UTC):
@@ -516,7 +528,7 @@ class AudioUpload(Model):
 
 
 class AudioUpdate(Revision):
-    physical_asset_id: str
+    physical_asset_id: str | None = None
     share_with_judges: bool
     note: Text
 

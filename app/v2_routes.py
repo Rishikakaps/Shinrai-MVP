@@ -91,6 +91,14 @@ def install_v2(app, store, authenticate, get_report):
             "hardware": "browser_phone_or_laptop; no smart-glasses SDK verified",
             "email_mode": "local_test_inbox",
             "automatic_underwriting": False,
+            "field_test_path": "/field-test",
+            "field_preview_transport": "bounded_authenticated_http_jpeg; ephemeral; max 256 KiB/640px; one request in flight",
+            "ocr_available": bool(shutil.which("tesseract")),
+            "code_decoder_available": __import__("importlib.util", fromlist=["find_spec"]).find_spec(
+                "zxingcpp"
+            )
+            is not None,
+            "provider_live_verified_this_process": False,
             "analyst_actors": app.state.analyst_actors,
         }
 
@@ -432,7 +440,15 @@ def install_v2(app, store, authenticate, get_report):
                 raise HTTPException(
                     422, "Keep the original finding's inspection; use review_inspection_id for a later visit"
                 )
-            binding = service.binding(db, case_id, body.physical_asset_id, body.inspection_id)
+            binding = (
+                service.binding(db, case_id, body.physical_asset_id, body.inspection_id)
+                if body.physical_asset_id
+                else None
+            )
+            if not binding and (body.claim_id or not body.project_id):
+                raise HTTPException(
+                    422, "Case/project requests require a project; machine claims require confirmed identity"
+                )
             service.validate_source(db, body.source, case_id)
             if body.reviewer not in service.analysts:
                 raise HTTPException(422, "Choose a configured analyst reviewer")
@@ -483,5 +499,8 @@ def install_v2(app, store, authenticate, get_report):
     from app.v2_chat import install_chat
 
     install_chat(router, app, service, authenticate)
+    from app.field_routes import install_field
+
+    install_field(router, app, service, authenticate)
     app.include_router(router)
     return service

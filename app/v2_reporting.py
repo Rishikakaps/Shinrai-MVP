@@ -5,9 +5,10 @@ import json
 from pathlib import Path
 from xml.sax.saxutils import escape
 
-from fastapi import Request
+from fastapi import HTTPException, Request
 from fastapi.responses import PlainTextResponse, Response
 
+from app.field_models import DocumentaryReview, FieldSession, VisualCapture
 from app.models import Asset, FollowUpAction, now
 from app.v2_capture import visible_audio
 from app.v2_models import (
@@ -76,13 +77,32 @@ def make_snapshot(service, db, request, case_id, get_report):
         if analyst
         else [],
         "media_access": "Analyst-only recordings and their transcripts are omitted for judges",
+        "field_sessions": service.list(db, FieldSession, case_id),
+        "visual_captures": service.list(db, VisualCapture, case_id),
+        "documentary_reviews": [],
     }
+    for review in service.list(db, DocumentaryReview, case_id):
+        current = True
+        for eid, version in review.evidence_versions.items():
+            try:
+                current = current and service.evidence(db, eid, case_id, accepted=True).version == version
+            except HTTPException:
+                current = False
+        result["documentary_reviews"].append(
+            {"review": review, "source_current": current, "physically_verified": False}
+        )
 
     # Normalize through Pydantic's own serializers for Decimal/datetime/enum values.
     def normalize(value):
         if hasattr(value, "model_dump"):
             return normalize(value.model_dump(mode="json"))
         if isinstance(value, dict):
+            if value.get("segment_id") and value.get("segment_version"):
+                segment = next((s for s in segments if s.id == value["segment_id"]), None)
+                value = {
+                    **value,
+                    "source_current": bool(segment and segment.version == value["segment_version"]),
+                }
             if not analyst and value.get("segment_id") in hidden_segments:
                 return {
                     **{k: normalize(v) for k, v in value.items() if k != "quote"},
@@ -150,6 +170,8 @@ def text_report(snapshot):
         ]
     lines += ["", "Machine Acoustic Memory:"]
     for audio in snapshot["audio"]:
+        if audio["capture_type"] != "machine_acoustic":
+            continue
         lines.append(
             f"{audio['id']} / asset {audio['physical_asset_id']} / {audio['duration_seconds']} seconds / SHA-256 {audio['sha256']}"
         )
@@ -157,6 +179,11 @@ def text_report(snapshot):
     for comparison in snapshot["comparisons"]:
         lines.append("Comparison: " + comparison["conclusion"])
     lines += ["", "Interview sources:"]
+    for audio in snapshot["audio"]:
+        if audio["capture_type"] != "machine_acoustic":
+            lines.append(
+                f"Protected interview recording {audio['id']}: {audio['processing_state']}; SHA-256 {audio['sha256']}"
+            )
     for segment in snapshot["segments"]:
         lines += [
             f"Segment {segment['id']} revision {segment['version']} ({segment['mode']})",
@@ -169,6 +196,17 @@ def text_report(snapshot):
                 + "): "
                 + segment["english_translation"]
             )
+    lines += ["", "Visual identity capture (identity only; not purchase/payment/commissioning proof):"]
+    for capture in snapshot.get("visual_captures", []):
+        lines.append(
+            f"{capture['id']}: {capture['state']}; source={capture['evidence_id']}; physical identity={capture['physical_asset_id'] or 'unconfirmed'}; review={capture['review_reason'] or 'pending'}"
+        )
+    lines += ["", "Documentary verification (not physical verification of quantity):"]
+    for entry in snapshot.get("documentary_reviews", []):
+        review = entry["review"]
+        lines.append(
+            f"{review['proposition']}: {review['status']}; supported quantity={review['supported_quantity']}; sources current={entry['source_current']}; plan={review['verification_plan']}; sources={', '.join(review['evidence_versions'])}"
+        )
     lines += [
         "",
         "Recording/transcript locators require application authentication.",
@@ -307,7 +345,7 @@ def pdf_report(snapshot, base_url):
             "MetaV2",
         )
         p("Required verification: " + details["required_evidence"])
-    p("Machine Acoustic Memory", "Heading2")
+    p("Protected recordings (speech and machine sound remain separate)", "Heading2")
     if not snapshot["audio"]:
         p("No recording is available for your access level.")
     for audio in snapshot["audio"]:
@@ -337,6 +375,22 @@ def pdf_report(snapshot, base_url):
                 + segment["english_translation"]
             )
         source_link(segment["id"])
+        if segment.get("provider_text"):
+            p("Unchanged provider transcript: " + segment["provider_text"], "MetaV2")
+    p("Visual identity and documentary verification", "Heading2")
+    for capture in snapshot.get("visual_captures", []):
+        p(
+            f"Capture {capture['id']}: {capture['state']}. Source {capture['evidence_id']}; physical identity {capture['physical_asset_id'] or 'unconfirmed'}."
+        )
+        p("Identity review does not establish purchase, payment, installation or commissioning.", "MetaV2")
+    for entry in snapshot.get("documentary_reviews", []):
+        review = entry["review"]
+        p(review["proposition"])
+        p(
+            f"{review['status']}; supported quantity {review['supported_quantity']}; sources current: {entry['source_current']}. Documentary support is not physical verification."
+        )
+        p("Verification plan: " + review["verification_plan"])
+        p("Source locators: " + review["locator"], "MetaV2")
 
     def footer(canvas, document):
         canvas.saveState()

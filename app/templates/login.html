@@ -12,6 +12,7 @@
     <p class="intro">Use your team’s analyst or judge access key. Your key determines what you can change.</p>
     <form action="/login" method="post" class="login-form">
       <input type="hidden" name="nonce" value="{{ nonce }}">
+      <input type="hidden" name="next_page" value="{{ next_page }}">
       <label for="token">Team access key</label>
       <input id="token" name="token" type="password" required maxlength="512" autocomplete="off" spellcheck="false" autofocus>
       {% if error %}<p role="alert" class="error-text">{{ error }}</p>{% endif %}

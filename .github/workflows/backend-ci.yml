@@ -50,9 +50,15 @@ jobs:
           python -m ruff format --check app scripts tests
           node --check app/static/app.js
           node --check app/static/v2-app.js
+          node --check app/static/field-test.js
       - name: Frontend state and edge-case tests
         run: npm run test:ui
       - name: SQLite and real Postgres acceptance tests
         run: python -m pytest -q
+      - name: Field browser with real backend and synthetic media
+        run: |
+          npm install --prefix .run/browser-tools --no-package-lock --ignore-scripts playwright@1.62.1
+          .run/browser-tools/node_modules/.bin/playwright install --with-deps chromium
+          NODE_PATH="$PWD/.run/browser-tools/node_modules" node scripts/verify_field_browser.cjs
       - name: Build deployment image
         run: docker build -t cdi-backend:ci .

@@ -22,6 +22,7 @@ from app.v2_models import (
     InvestmentProject,
     SegmentCreate,
     SegmentUpdate,
+    StatementRecord,
     TranscribeRequest,
     TranscriptSegment,
     TranslateRequest,
@@ -57,6 +58,35 @@ def stale_candidates(service, db, segment_id, case_id, actor, reason):
         if candidate.segment_id == segment_id and candidate.review_status == "pending":
             candidate.review_status = "stale"
             service.save(db, candidate, actor, reason, "v2.candidate.source_invalidated")
+        elif candidate.segment_id == segment_id and candidate.review_status == "accepted":
+            candidate.source_current = False
+            service.save(db, candidate, actor, reason, "v2.candidate.accepted_source_requires_review")
+            if candidate.destination_id:
+                records = service.list(db, StatementRecord, case_id)
+                for record in records:
+                    if record.id == candidate.destination_id:
+                        record.requires_review = True
+                        service.save(db, record, actor, reason, "v2.statement.source_requires_review")
+
+
+def capture_context(service, db, case_id, body, actor=None):
+    service.require_visit(db, case_id, body.inspection_id)
+    if body.physical_asset_id:
+        service.binding(db, case_id, body.physical_asset_id, body.inspection_id)
+    if getattr(body, "field_session_id", None):
+        from app.field_models import FieldSession
+
+        session = service.get(db, FieldSession, body.field_session_id, case_id)
+        if actor and session.owner != actor:
+            raise HTTPException(403, "This device session belongs to another analyst")
+        expected = "machine_acoustic" if body.capture_type == "machine_acoustic" else "interview"
+        if (
+            session.inspection_id != body.inspection_id
+            or session.physical_asset_id != body.physical_asset_id
+            or session.purpose != expected
+            or (isinstance(body, AudioUpload) and session.state == "CLOSED")
+        ):
+            raise HTTPException(422, "Audio must retain its active field session and purpose")
 
 
 def install_capture(router, app, service, authenticate):
@@ -81,10 +111,16 @@ def install_capture(router, app, service, authenticate):
         content = file.file.read(MAX_BYTES + 1)
         content_hash = hashlib.sha256(content).hexdigest()
         filename = Path((file.filename or "audio").replace("\\", "/")).name[:200]
-        payload = {"metadata": body.model_dump(mode="json"), "sha256": content_hash, "filename": filename}
+        serialized = body.model_dump(mode="json")
+        # Keep pre-field-client upload receipts replayable after this additive upgrade.
+        if body.field_session_id is None:
+            serialized.pop("field_session_id", None)
+        if body.speaker_label is None:
+            serialized.pop("speaker_label", None)
+        payload = {"metadata": serialized, "sha256": content_hash, "filename": filename}
         operation = "audio.upload:" + case_id
         with store.transaction(write=False) as db:
-            service.binding(db, case_id, body.physical_asset_id, body.inspection_id)
+            capture_context(service, db, case_id, body, actor)
             previous = service.retry(db, actor, operation, idempotency_key, payload)
             if previous:
                 return service.get(db, AudioRecording, previous, case_id)
@@ -92,7 +128,7 @@ def install_capture(router, app, service, authenticate):
         # Commit only references to fully persisted original bytes.
         digest = persist_original(store.files, content)
         with store.transaction() as db:
-            service.binding(db, case_id, body.physical_asset_id, body.inspection_id)
+            capture_context(service, db, case_id, body, actor)
             previous = service.retry(db, actor, operation, idempotency_key, payload)
             if previous:
                 return service.get(db, AudioRecording, previous, case_id)
@@ -140,7 +176,14 @@ def install_capture(router, app, service, authenticate):
         with store.transaction() as db:
             item = service.get(db, AudioRecording, recording_id, case_id)
             check_version(item, body.version)
-            service.binding(db, case_id, body.physical_asset_id, item.inspection_id)
+            if body.physical_asset_id:
+                service.binding(db, case_id, body.physical_asset_id, item.inspection_id)
+            elif item.capture_type == "machine_acoustic":
+                raise HTTPException(422, "Machine acoustic recordings require a physical machine")
+            if item.field_session_id and item.physical_asset_id != body.physical_asset_id:
+                raise HTTPException(
+                    422, "Field recording associations require a new session, not reassignment"
+                )
             if body.share_with_judges and not item.synthetic:
                 raise HTTPException(422, "Only synthetic recordings may be shared with judges")
             association_changed = item.physical_asset_id != body.physical_asset_id
@@ -202,7 +245,7 @@ def install_capture(router, app, service, authenticate):
             raise HTTPException(422, "Confirm interview consent/authorization")
         payload, operation = body.model_dump(mode="json"), "interview.create:" + case_id
         with store.transaction() as db:
-            service.binding(db, case_id, body.physical_asset_id, body.inspection_id)
+            capture_context(service, db, case_id, body)
             if body.project_id:
                 service.get(db, InvestmentProject, body.project_id, case_id)
             previous = service.retry(db, actor, operation, idempotency_key, payload)
@@ -214,7 +257,7 @@ def install_capture(router, app, service, authenticate):
             return item
 
     def segment_refs(db, case_id, interview, body):
-        service.binding(db, case_id, interview.physical_asset_id, interview.inspection_id)
+        capture_context(service, db, case_id, interview)
         if body.recording_id:
             recording = service.get(db, AudioRecording, body.recording_id, case_id)
             if (
@@ -295,6 +338,12 @@ def install_capture(router, app, service, authenticate):
             segment_refs(db, case_id, interview, body)
             if body.mode in {"microphone_chunk", "prerecorded"} and body.mode != item.mode:
                 raise HTTPException(422, "Manual edits cannot fabricate a provider/capture mode")
+            if (
+                item.provider
+                and item.provider_text is None
+                and item.mode in {"microphone_chunk", "prerecorded"}
+            ):
+                item.provider_text, item.provider_translation = item.text, item.english_translation
             for field, value in body.model_dump(exclude={"reason", "version"}).items():
                 setattr(item, field, value)
             item.source_revision += 1
@@ -314,6 +363,8 @@ def install_capture(router, app, service, authenticate):
             fresh = service.get(db, TranscriptSegment, segment_id, case_id)
             check_version(fresh, body.version)
             fresh.english_translation, fresh.translation_origin = translated, "provider"
+            if fresh.provider_translation is None:
+                fresh.provider_translation = translated
             fresh.provider = app.state.ai.name
             fresh.source_revision += 1
             service.save(db, fresh, actor, body.reason, "v2.transcript.translated")
@@ -334,7 +385,7 @@ def install_capture(router, app, service, authenticate):
         with store.transaction(write=False) as db:
             item = service.get(db, AudioRecording, recording_id, case_id)
             interview = service.get(db, InterviewSession, body.interview_id, case_id)
-            service.binding(db, case_id, item.physical_asset_id, item.inspection_id)
+            capture_context(service, db, case_id, item)
             if item.capture_type == "machine_acoustic" or "silence_or_very_low_signal" in item.quality_flags:
                 raise HTTPException(422, "No usable interview speech source selected")
             if (
@@ -346,19 +397,34 @@ def install_capture(router, app, service, authenticate):
             if previous:
                 return service.get(db, TranscriptSegment, previous, case_id)
             path = audio_intact(store, item)
-        text, translation = app.state.ai.transcribe(path, item.filename, item.media_type, body.language)
+        try:
+            text, translation = app.state.ai.transcribe(path, item.filename, item.media_type, body.language)
+        except HTTPException as exc:
+            with store.transaction() as db:
+                failed = service.get(db, AudioRecording, recording_id, case_id)
+                failed.processing_state, failed.processing_error = "PROCESSING_FAILED", str(exc.detail)[:4000]
+                service.save(db, failed, actor, body.reason, "v2.audio.provider_failed_source_retained")
+            raise
         with store.transaction() as db:
             fresh = service.get(db, AudioRecording, recording_id, case_id)
-            check_version(fresh, item.version)
+            current_interview = service.get(db, InterviewSession, body.interview_id, case_id)
+            check_version(current_interview, interview.version)
+            # Provider failures may update processing metadata; substantive association changes remain guarded.
+            if fresh.physical_asset_id != item.physical_asset_id or fresh.sha256 != item.sha256:
+                raise HTTPException(409, "Recording association changed during transcription")
             previous = service.retry(db, actor, operation, idempotency_key, payload)
             if previous:
                 return service.get(db, TranscriptSegment, previous, case_id)
-            service.binding(db, case_id, item.physical_asset_id, item.inspection_id)
+            capture_context(service, db, case_id, fresh)
+            fresh.processing_state, fresh.processing_error = "PROCESSED", None
+            service.save(db, fresh, actor, body.reason, "v2.audio.transcribed")
             segment = TranscriptSegment(
                 case_id=case_id,
                 inspection_id=item.inspection_id,
                 interview_id=interview.id,
                 text=text,
+                provider_text=text,
+                provider_translation=translation,
                 language=body.language,
                 english_translation=translation,
                 translation_origin="provider" if translation else None,

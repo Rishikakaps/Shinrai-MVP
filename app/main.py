@@ -195,7 +195,14 @@ def create_app(
         allow_origins=origins,
         allow_credentials=False,
         allow_methods=["GET", "POST", "PATCH"],
-        allow_headers=["Authorization", "Content-Type", "ngrok-skip-browser-warning"],
+        allow_headers=[
+            "Authorization",
+            "Content-Type",
+            "ngrok-skip-browser-warning",
+            "Idempotency-Key",
+            "X-CSRF-Token",
+            "X-Request-ID",
+        ],
     )
 
     def authenticate(
