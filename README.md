@@ -165,3 +165,7 @@ This project is maintained in a private GitHub repository. See [the changelog](C
 [Compare 20 generated layout mockups](docs/design-exploration/README.md): five density/style directions for each of the four proposed trial pages. These are concept images, not implemented frontend screens or approved scope changes. Prompts are included with the gallery.
 
 [Labelled Theme A guide](docs/design-exploration/labelled-theme-a/README.md): the four simple screens annotated with each section's role, scan-derived data, analyst edits and judge access.
+
+## Proposed next product direction
+
+[Japan wearables and a focused business/feature direction](docs/product-direction-2026-10-24.md) records checked hardware capabilities and proposed voice-linked capture, an end-of-visit evidence check and idle-equipment blocker follow-ups. These are research proposals, not implemented features or changes to the locked claim rules.
