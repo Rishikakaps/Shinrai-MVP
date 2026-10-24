@@ -16,3 +16,6 @@ tmp/
 .env.*
 *.pem
 *.key
+
+# Download bundle duplicates the committed concept images.
+/output/frontend-layout-options.zip

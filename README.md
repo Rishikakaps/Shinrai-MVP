@@ -153,3 +153,7 @@ The [frontend functional plan](docs/frontend-plan.md) maps six views to the test
 ## Source control and future updates
 
 This project is maintained in a private GitHub repository. See [the changelog](CHANGELOG.md) for the build's actual scope and limitations, and [the contribution workflow](CONTRIBUTING.md) for the owner's instruction to commit and push future tested codebase changes. GitHub Actions checks tests, formatting and static analysis on each push. Credentials, runtime databases/storage and synced ChatGPT project references are excluded from source control.
+
+## Frontend layout concepts
+
+[Compare 20 generated layout mockups](docs/design-exploration/README.md): five density/style directions for each of the four proposed trial pages. These are concept images, not implemented frontend screens or approved scope changes. Prompts are included with the gallery.

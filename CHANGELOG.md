@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased — layout exploration
+
+- Add 20 generated frontend mockups: five styles for each of four trial pages, from minimal notebook to dense operations console.
+- Include page-by-page galleries, the element checklist, and generation prompts. These are design concepts; no frontend implementation or backend behavior changed.
+
 ## 0.1.0 — 24 October 2026
 
 Initial backend-first Japan Day hackathon build for Capital Deployment Integrity Working Model V1.
