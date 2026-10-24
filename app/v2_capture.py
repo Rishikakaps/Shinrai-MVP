@@ -26,7 +26,7 @@ from app.v2_models import (
     TranscriptSegment,
     TranslateRequest,
 )
-from app.v2_providers import GroqProvider
+from app.v2_providers import GeminiProvider
 from app.v2_store import check_version
 
 
@@ -62,7 +62,7 @@ def stale_candidates(service, db, segment_id, case_id, actor, reason):
 def install_capture(router, app, service, authenticate):
     store = service.store
     Actor = Annotated[str, Depends(authenticate)]
-    app.state.groq = GroqProvider()
+    app.state.ai = GeminiProvider()
 
     @router.post("/cases/{case_id}/audio", response_model=AudioRecording, status_code=201)
     def upload_audio(
@@ -309,12 +309,12 @@ def install_capture(router, app, service, authenticate):
             check_version(item, body.version)
             if item.language != "ja":
                 raise HTTPException(422, "This endpoint translates Japanese originals to English")
-        translated = app.state.groq.translate(item.text)
+        translated = app.state.ai.translate(item.text)
         with store.transaction() as db:
             fresh = service.get(db, TranscriptSegment, segment_id, case_id)
             check_version(fresh, body.version)
             fresh.english_translation, fresh.translation_origin = translated, "provider"
-            fresh.provider = app.state.groq.name
+            fresh.provider = app.state.ai.name
             fresh.source_revision += 1
             service.save(db, fresh, actor, body.reason, "v2.transcript.translated")
             stale_candidates(service, db, fresh.id, case_id, actor, body.reason)
@@ -346,7 +346,7 @@ def install_capture(router, app, service, authenticate):
             if previous:
                 return service.get(db, TranscriptSegment, previous, case_id)
             path = audio_intact(store, item)
-        text, translation = app.state.groq.transcribe(path, item.filename, item.media_type, body.language)
+        text, translation = app.state.ai.transcribe(path, item.filename, item.media_type, body.language)
         with store.transaction() as db:
             fresh = service.get(db, AudioRecording, recording_id, case_id)
             check_version(fresh, item.version)
@@ -366,7 +366,7 @@ def install_capture(router, app, service, authenticate):
                 start_ms=0,
                 end_ms=int(item.duration_seconds * 1000),
                 mode=body.mode,
-                provider=app.state.groq.name,
+                provider=app.state.ai.name,
             )
             service.save(db, segment, actor, body.reason, "v2.transcript.provider_segment_saved")
             service.receipt(db, actor, operation, idempotency_key, payload, segment.id)

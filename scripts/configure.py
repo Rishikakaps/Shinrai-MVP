@@ -23,6 +23,7 @@ def main():
         + "\nCDI_JUDGE_TOKEN="
         + judge
         + "\nCDI_DATA_DIR=data\nCDI_CORS_ORIGINS=\n"
+        + "GEMINI_API_KEY=\nGEMINI_MODEL=gemini-3.8-flash\n"
     )
     try:
         descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)

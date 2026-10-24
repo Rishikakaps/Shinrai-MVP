@@ -82,8 +82,9 @@ def install_v2(app, store, authenticate, get_report):
             "product_version": "2",
             "database": store.backend,
             "audio_decode_available": bool(shutil.which("ffmpeg") and shutil.which("ffprobe")),
-            "groq_configured": bool(os.environ.get("GROQ_API_KEY", "").strip()),
-            "groq_model": os.environ.get("GROQ_MODEL", "qwen/qwen3.8-27b"),
+            "ai_provider": app.state.ai.name,
+            "ai_configured": app.state.ai.configured(),
+            "ai_model": os.environ.get("GEMINI_MODEL", "gemini-3.8-flash"),
             "speech_mode": "short_audio_chunks_not_continuous_streaming",
             "max_audio_seconds": 120,
             "max_audio_bytes": 12 * 1024 * 1024,
@@ -100,20 +101,25 @@ def install_v2(app, store, authenticate, get_report):
 
         from dotenv import dotenv_values
 
-        from app.v2_providers import GroqProvider
+        from app.v2_providers import GeminiProvider
 
         settings_file = Path(
             os.environ.get("CDI_ENV_FILE", str(Path(__file__).resolve().parents[1] / ".env"))
         )
-        values = dotenv_values(settings_file)
-        for key in ("GROQ_API_KEY", "GROQ_MODEL"):
+        try:
+            values = dotenv_values(settings_file)
+        except OSError as exc:
+            raise HTTPException(
+                503, "Private configuration file is unavailable; restore local file access and retry"
+            ) from exc
+        for key in ("GEMINI_API_KEY", "GOOGLE_API_KEY", "GEMINI_MODEL"):
             if key in values:
                 os.environ[key] = values[key] or ""
-        app.state.groq = GroqProvider()
+        app.state.ai = GeminiProvider()
         return {
-            "provider": "groq",
-            "configured": bool(os.environ.get("GROQ_API_KEY")),
-            "model": app.state.groq.model,
+            "provider": "gemini",
+            "configured": app.state.ai.configured(),
+            "model": app.state.ai.model,
         }
 
     @router.post("/cases", response_model=CaseRecord, status_code=201)

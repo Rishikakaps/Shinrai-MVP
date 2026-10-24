@@ -22,7 +22,7 @@ async function load(){
  state.caseId=$('case').value;state.snapshot=await api(root()+'/export');
  const visits=state.snapshot.v1_inspections.map(v=>v.inspection);options($('visit'),visits,v=>v.name,state.visitId||visits.at(-1)?.id);state.visitId=$('visit').value;
  await selectVisit();
- const caps=await api('/api/v1/capabilities');$('capabilities').textContent=`AI: ${caps.groq_configured?'configured; actual requests will be checked':'key not configured'} · Audio decoder: ${caps.audio_decode_available?'available':'unavailable'} · Speech uses short clips · Email goes to a local test inbox.`;
+ const caps=await api('/api/v1/capabilities');$('capabilities').textContent=`AI: ${caps.ai_configured?'configured; actual requests will be checked':'key not configured'} · Audio decoder: ${caps.audio_decode_available?'available':'unavailable'} · Speech uses short clips · Email goes to a local test inbox.`;
  options($('reviewer'),caps.analyst_actors.map(a=>({id:a})),a=>a.id,document.body.dataset.actor);
  message('Saved case history loaded. Forecasts and recordings do not establish commissioning.');
 }

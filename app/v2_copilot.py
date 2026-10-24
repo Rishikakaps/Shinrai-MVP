@@ -158,9 +158,9 @@ def install_copilot(router, app, service, authenticate):
             "\nEnglish translation: " + segment.english_translation if segment.english_translation else ""
         )
         notices = []
-        provider, model = app.state.groq.name, app.state.groq.model
+        provider, model = app.state.ai.name, app.state.ai.model
         try:
-            output = app.state.groq.analyse(
+            output = app.state.ai.analyse(
                 text, {**context, "already_asked_or_dismissed_topics": sorted(asked)}
             )
         except HTTPException:
