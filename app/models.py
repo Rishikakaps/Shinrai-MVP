@@ -46,6 +46,10 @@ class EvidenceKind(StrEnum):
     commissioning_certificate = "commissioning_certificate"
     financial_statement = "financial_statement"
     management_statement = "management_statement"
+    operating_log = "operating_log"
+    maintenance_record = "maintenance_record"
+    production_record = "production_record"
+    utility_record = "utility_record"
 
 
 class Facts(Model):
@@ -218,7 +222,7 @@ class FollowUpCreate(Model):
 
 
 class FollowUpAction(Entity):
-    claim_id: str
+    claim_id: str | None = None
     request: str
     state: Literal["open", "resolved"] = "open"
     resolution: str | None = None

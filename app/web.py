@@ -33,6 +33,7 @@ def install_ui(app, store, sessions, authenticate):
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' blob: data:; "
             "frame-src 'self' blob:; object-src 'none'; connect-src 'self'; "
+            "media-src 'self' blob:; "
             "base-uri 'self'; form-action 'self'; frame-ancestors 'self'"
         )
         if not request.url.path.startswith("/static/"):
@@ -115,6 +116,13 @@ def install_ui(app, store, sessions, authenticate):
         if session is None:
             return RedirectResponse("/login", status_code=303)
         return templates.TemplateResponse(request=request, name="app.html", context={"viewer": session})
+
+    @app.get("/backend-test", response_class=HTMLResponse, include_in_schema=False)
+    def backend_verification(request: Request):
+        session = sessions.read(request)
+        if session is None:
+            return RedirectResponse("/login", status_code=303)
+        return templates.TemplateResponse(request=request, name="v2_test.html", context={"viewer": session})
 
     @app.post("/api/v1/demo/prepare", response_model=Inspection)
     def new_trial(body: Reason, actor: Actor):

@@ -1,0 +1,43 @@
+# Synthetic, single-team local demo. No paid database or provider billing is required.
+services:
+  backend:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      CDI_DATA_DIR: /data
+      DATABASE_URL: ""
+      CDI_REQUIRE_POSTGRES: "false"
+      CDI_ENABLE_REMINDERS: "true"
+      CDI_EMAIL_MODE: test
+      CDI_SMTP_HOST: mailpit
+      CDI_SMTP_PORT: "1025"
+      CDI_REMINDER_RECIPIENT: analyst@example.test
+    ports:
+      - "127.0.0.1:8002:8000"
+    volumes:
+      - v2-demo-data:/data
+    read_only: true
+    tmpfs:
+      - /tmp:size=128m,mode=1777
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 1536m
+    cpus: 2
+    depends_on:
+      - mailpit
+  mailpit:
+    image: axllent/mailpit:v1.32.0
+    restart: unless-stopped
+    environment:
+      MP_DATABASE: /data/mailpit.sqlite
+      MP_IGNORE_DUPLICATE_IDS: "true"
+      MP_DISABLE_VERSION_CHECK: "true"
+      MP_SMTP_ALLOWED_RECIPIENTS: '@example\.test$$'
+    ports:
+      - "127.0.0.1:18025:8025"
+    volumes:
+      - v2-mailpit-data:/data
+volumes:
+  v2-demo-data:
+  v2-mailpit-data:

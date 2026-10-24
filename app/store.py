@@ -25,7 +25,6 @@ CREATE TRIGGER IF NOT EXISTS immutable_event_update BEFORE UPDATE ON review_even
  BEGIN SELECT RAISE(ABORT, 'Review events are immutable'); END;
 CREATE TRIGGER IF NOT EXISTS immutable_event_delete BEFORE DELETE ON review_events
  BEGIN SELECT RAISE(ABORT, 'Review events are immutable'); END;
-PRAGMA user_version=1;
 """
 
 
@@ -43,6 +42,8 @@ class Store:
         try:
             db.execute("PRAGMA journal_mode=WAL")
             db.executescript(SCHEMA)
+            if db.execute("PRAGMA user_version").fetchone()[0] == 0:
+                db.execute("PRAGMA user_version=1")
         finally:
             db.close()
 
@@ -142,13 +143,14 @@ class Store:
         )
         return obj
 
-    def events(self, db, scope):
-        return [
+    def events(self, db, scope, include_v2=False):
+        events = [
             ReviewEvent.model_validate(self.decode(r["data"]))
             for r in self.execute(
                 db, f"SELECT data FROM {self.events_table} WHERE inspection_id=? ORDER BY sequence", (scope,)
             )
         ]
+        return events if include_v2 else [event for event in events if not event.action.startswith("v2.")]
 
     def ready(self):
         with self.transaction(write=False) as db:

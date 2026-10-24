@@ -167,19 +167,26 @@ def create_app(
     @asynccontextmanager
     async def lifespan(_app):
         try:
+            if hasattr(_app.state, "reminder_scheduler"):
+                _app.state.reminder_scheduler.start()
             yield
         finally:
+            if hasattr(_app.state, "reminder_scheduler"):
+                _app.state.reminder_scheduler.stop()
             store.close()
 
     app = FastAPI(
-        title="Capital Deployment Integrity V1",
-        version="0.2.0",
+        title="Capital Deployment Integrity V2",
+        version="0.3.0",
         docs_url=None,
         redoc_url=None,
         openapi_url=None,
         lifespan=lifespan,
     )
     app.state.store = store
+    app.state.analyst_actors = sorted(
+        {value["actor"] for value in tokens.values() if value["role"] == "analyst"}
+    )
     sessions = BrowserSessions(store, tokens)
     app.state.browser_sessions = sessions
     app.add_middleware(BodyLimit)
@@ -211,6 +218,7 @@ def create_app(
             )
         if request.method not in ("GET", "HEAD", "OPTIONS") and principal["role"] != "analyst":
             raise HTTPException(403, "Judge access is read-only")
+        request.state.principal = principal
         return principal["actor"]
 
     Actor = Annotated[str, Depends(authenticate)]
@@ -272,7 +280,7 @@ def create_app(
             reconciliation_current=bool(claims) and len(current) == len(claims),
             integrity_issues=[e.id for e in store.list(db, Evidence, iid) if not engine.intact(store, e)],
             observations=store.list(db, Observation, iid),
-            follow_ups=store.list(db, FollowUpAction, iid),
+            follow_ups=[item for item in store.list(db, FollowUpAction, iid) if item.claim_id is not None],
             review_events=store.events(db, iid),
         )
 
@@ -655,6 +663,14 @@ def create_app(
         with store.transaction() as db:
             item = store.get(db, FollowUpAction, aid, iid)
             version_check(item, body.version)
+            v2 = app.state.v2
+            membership = store.execute(
+                db, f"SELECT case_id FROM {v2.members} WHERE inspection_id=?", (iid,)
+            ).fetchone()
+            if membership and v2.follow_context(db, membership["case_id"], aid):
+                raise HTTPException(
+                    409, "Enhanced follow-up requires its submission/reviewer transition endpoint"
+                )
             item.state, item.resolution = body.state, body.resolution
             return store.save(db, item, actor, body.reason, "follow_up.updated")
 
@@ -662,7 +678,7 @@ def create_app(
     def follow_ups(iid: str):
         with store.transaction(write=False) as db:
             inspection(db, iid)
-            return store.list(db, FollowUpAction, iid)
+            return [item for item in store.list(db, FollowUpAction, iid) if item.claim_id is not None]
 
     @router.get("/inspections/{iid}/review-events", response_model=list[ReviewEvent])
     def events(iid: str):
@@ -722,5 +738,8 @@ def create_app(
         return "\n".join(lines) + "\n"
 
     app.include_router(router)
+    from app.v2_routes import install_v2
+
+    install_v2(app, store, authenticate, get_report)
     install_ui(app, store, sessions, authenticate)
     return app

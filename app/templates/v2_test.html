@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="csrf-token" content="{{ viewer.csrf }}">
+  <title>V2 backend verification</title>
+  <link rel="stylesheet" href="/static/v2-test.css">
+  <script src="/static/v2-test.js" defer></script>
+</head>
+<body data-role="{{ viewer.role }}" data-actor="{{ viewer.actor }}">
+<header><a href="/app">← Inspection app</a><h1>Investment & inspection memory</h1>
+<p>Backend verification workspace · Synthetic demonstration · {{ viewer.actor }}</p></header>
+<main>
+  <p id="message" role="status" aria-live="polite">Loading saved cases…</p>
+  <section><h2>1. Choose the confirmed machine</h2>
+    <div class="grid"><label>Case<select id="case"></select></label>
+    <label>Inspection visit<select id="visit"></select></label>
+    <label>Machine<select id="machine"></select></label>
+    <label>Investment<select id="project"></select></label></div>
+    <p id="capabilities"></p><button id="refresh" type="button">Refresh saved history</button>
+  </section>
+  <section><h2>2. Capture a source</h2>
+    <p>Capture starts only after machine identity has been confirmed. Keep machine sound separate from interview speech.</p>
+    <div class="grid"><label>Recording purpose<select id="capture-type"><option value="machine_acoustic">Machine acoustic sample</option><option value="interview_speech">Interview speech</option><option value="inspector_voice_note">Inspector voice note</option></select></label>
+    <label>Language<select id="language"><option value="ja">Japanese</option><option value="en">English</option></select></label>
+    <label>Operating mode<input id="operating-mode" value="unknown" maxlength="200"></label>
+    <label>Device description<input id="device" value="Phone or laptop microphone" maxlength="200"></label></div>
+    <label>Capture note<textarea id="audio-note" maxlength="4000">Synthetic demonstration recording. Operating load and microphone distance are unknown.</textarea></label>
+    <label class="check"><input id="consent" type="checkbox"> Recording is authorized and speakers have been informed.</label>
+    <label class="check"><input id="synthetic" type="checkbox" checked> This is a synthetic demonstration.</label>
+    <label class="check"><input id="share" type="checkbox"> Allow judges to play this synthetic clip.</label>
+    <div class="actions"><button id="record" type="button">Start recording</button><button id="stop" type="button" disabled>Stop</button><button id="save-audio" type="button" disabled>Save clip</button></div>
+    <p id="record-state">Idle. Short clips only; recording stops after 110 seconds.</p>
+    <audio id="preview" controls></audio>
+    <div id="unsaved-clips"></div>
+    <label>Or upload a saved WAV, WebM/Opus or M4A/AAC file<input id="audio-file" type="file" accept="audio/wav,audio/webm,audio/mp4,.wav,.webm,.m4a,.mp4"></label>
+    <label class="check"><input id="incremental" type="checkbox"> Process interview speech in separate 8-second clips while recording.</label>
+    <p class="muted">Incremental mode uploads complete short clips. Transcript/translation updates follow processing; it is not continuous streaming. Questions can be generated from any saved segment.</p>
+    <details><summary>Attach a phone photo using the existing evidence workflow</summary>
+      <label>Image<input id="photo-file" type="file" accept="image/jpeg,image/png" capture="environment"></label>
+      <button id="save-photo" type="button">Save photo for analyst review</button>
+      <p class="muted">Uploading a photo does not confirm identity, installation or commissioning. Review it in Evidence.</p>
+    </details>
+  </section>
+  <section><h2>3. Interview and questions</h2>
+    <div class="grid"><label>Speaker label<input id="speaker" value="Speaker 1 — unconfirmed" maxlength="200"></label>
+    <label class="check"><input id="speaker-confirmed" type="checkbox"> I confirmed the speaker attribution.</label></div>
+    <label>Original interview text<textarea id="transcript" maxlength="4000" placeholder="Enter a new statement or transcribe a saved interview clip"></textarea></label>
+    <div class="actions"><button id="save-segment" type="button">Save source text</button><button id="translate" type="button">Translate saved Japanese text</button><button id="analyse" type="button">Generate contextual questions</button></div>
+    <label class="check"><input id="fallback" type="checkbox"> Allow an explicitly labelled rules fallback if AI is unavailable.</label>
+    <p id="translation"></p><div id="questions"></div><div id="candidates"></div>
+  </section>
+  <section><h2>4. Saved history and review</h2>
+    <div id="history"></div>
+    <details><summary>Create an investment project</summary><form id="project-form">
+      <label>Title<input name="title" required maxlength="200"></label><label>Type<select name="kind"><option>replacement</option><option>new_purchase</option><option>repair</option><option>upgrade</option><option>expansion</option></select></label>
+      <label>Reported rationale<textarea name="rationale" required maxlength="4000"></textarea></label>
+      <div class="grid"><label>Proposed amount, if known<input name="proposed_amount" type="number" min="0" step="0.01"></label><label>Currency<input name="currency" value="JPY" maxlength="3"></label></div>
+      <button type="submit">Save reported proposal</button></form></details>
+    <details><summary>Create a follow-up evidence request</summary><form id="task-form">
+      <label>Request<textarea name="request" required maxlength="4000"></textarea></label>
+      <label>Underlying claim<select name="claim_id" id="task-claim"><option value="">Project/asset verification requirement</option></select></label>
+      <div class="grid"><label>Reported contact<input name="contact" required maxlength="200"></label><label>Reviewer<select id="reviewer" name="reviewer"></select></label><label>Due date<input name="due_date" type="date" required></label></div>
+      <label>Required verification<textarea name="required_evidence" required maxlength="4000"></textarea></label>
+      <button type="submit">Save follow-up</button></form></details>
+    <h3>Follow-ups</h3><div id="tasks"></div>
+    <h3>Recordings</h3><div id="recordings"></div>
+    <div class="grid"><label>First machine clip<select id="compare-first"></select></label><label>Second machine clip<select id="compare-second"></select></label></div>
+    <button id="compare" type="button">Compare recorded signal features</button><p id="comparison"></p>
+    <div class="actions"><a id="pdf" href="#">Download PDF review</a><a id="json" href="#">Download JSON review</a><button id="reminders" type="button">Run due-date test reminder check</button><button id="audit" type="button">Show saved-edit audit</button></div>
+    <pre id="audit-log"></pre>
+  </section>
+</main>
+</body></html>
