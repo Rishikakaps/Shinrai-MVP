@@ -1,0 +1,20 @@
+{
+  "verified_at": "2026-10-24T06:50:46.640775+00:00",
+  "transport": "Actual loopback HTTP against Uvicorn",
+  "startup": "passed",
+  "process_restart": "passed",
+  "role_checks": "passed",
+  "inspection_id": "5c55ea2a-f848-4d6f-9ab8-3b94553f8ee7",
+  "assets": 3,
+  "claims": 18,
+  "originals_verified_after_restart": 14,
+  "immutable_events_preserved": 152,
+  "computed_status_counts": {
+    "supported": 15,
+    "unresolved": 3
+  },
+  "limitations": [
+    "Source six-page product PDF unavailable",
+    "Docker daemon unavailable; container not executed"
+  ]
+}

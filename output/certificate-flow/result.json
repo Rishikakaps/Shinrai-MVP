@@ -1,0 +1,24 @@
+{
+  "tested_at": "2026-10-24T08:20:12.876581+00:00",
+  "transport": "Actual HTTP against local FastAPI service",
+  "inspection_id": "5c55ea2a-f848-4d6f-9ab8-3b94553f8ee7",
+  "asset": "CNC-002",
+  "claim": "commissioning",
+  "before": "unresolved",
+  "uploaded_but_not_accepted": "unresolved",
+  "after_analyst_acceptance_and_reconciliation": "supported",
+  "original_unresolved_finding_preserved": true,
+  "earlier_audit_events_preserved": true,
+  "stale_reviews_invalidated": true,
+  "only_target_claim_changed": true,
+  "original_download_digest_verified": true,
+  "certificate_follow_up": "resolved",
+  "review_state": "review_complete",
+  "computed_status_counts": {
+    "supported": 16,
+    "unresolved": 2
+  },
+  "evidence_id": "605c3ae5-f64f-474c-8fbc-67b6770af091",
+  "evidence_sha256": "537f114f294d6cff1e643dd8ee14ec36a2081c92467f4bc5a551be33584ab638",
+  "evidence_is_synthetic": true
+}

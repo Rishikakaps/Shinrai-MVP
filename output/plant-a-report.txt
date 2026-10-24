@@ -1,0 +1,87 @@
+Capital Deployment Integrity V1
+Inspection: Plant A - three CNC machines
+Site: Plant A
+Review state: review_complete
+Equipment/declared assets, invoices and payment extracts only. Financial statements are contextual; no underwriting or fraud conclusion. Synthetic demo data only.
+Review completion is separate from evidentiary support.
+Current findings:
+CNC-001 / identity: computed=supported; reviewed=supported
+Exact serial with model and site corroboration, accepted by analyst.
+Next action: Review finding and preserve supporting evidence.
+Accepted evidence: d99f5efb-8f85-4869-ad0f-aea40691d6d9, ff96916a-defd-4017-a3a9-a877df12c91b
+CNC-001 / purchase: computed=supported; reviewed=supported
+Invoice reference and machine identifier match the register/declared asset.
+Next action: Review finding and preserve supporting evidence.
+Accepted evidence: b1ebd990-dbbf-4c9e-a9f3-a92186c18c79, ff96916a-defd-4017-a3a9-a877df12c91b
+CNC-001 / payment: computed=supported; reviewed=supported
+Accepted payment reference, invoice reference, amount and currency reconcile.
+Next action: Review finding and preserve supporting evidence.
+Accepted evidence: 40b81c2c-98a9-4df1-955e-72f24170d68d, b1ebd990-dbbf-4c9e-a9f3-a92186c18c79
+CNC-001 / presence: computed=supported; reviewed=supported
+Accepted present evidence tied to this serial identifier.
+Next action: Review finding and preserve supporting evidence.
+Accepted evidence: e9b61a54-6193-470e-8715-5ac9b289e3c6
+CNC-001 / installation: computed=supported; reviewed=supported
+Accepted installed evidence tied to this serial identifier.
+Next action: Review finding and preserve supporting evidence.
+Accepted evidence: e9b61a54-6193-470e-8715-5ac9b289e3c6
+CNC-001 / commissioning: computed=supported; reviewed=supported
+Accepted commissioned evidence tied to this serial identifier.
+Next action: Review finding and preserve supporting evidence.
+Accepted evidence: 304bf128-99fb-4616-a644-37f5b3179f9b, e9b61a54-6193-470e-8715-5ac9b289e3c6
+CNC-002 / identity: computed=supported; reviewed=supported
+Exact serial with model and site corroboration, accepted by analyst.
+Next action: Review finding and preserve supporting evidence.
+Accepted evidence: 952d8e50-ee17-44b8-8fb0-15ef26ee31a4
+CNC-002 / purchase: computed=supported; reviewed=supported
+Invoice reference and machine identifier match the register/declared asset.
+Next action: Review finding and preserve supporting evidence.
+Accepted evidence: 185d33e4-3f32-446f-9806-f5255a42a79d, 952d8e50-ee17-44b8-8fb0-15ef26ee31a4
+CNC-002 / payment: computed=supported; reviewed=supported
+Accepted payment reference, invoice reference, amount and currency reconcile.
+Next action: Review finding and preserve supporting evidence.
+Accepted evidence: 185d33e4-3f32-446f-9806-f5255a42a79d, 88dd54b1-0f50-48e8-a481-b5bc6342ae69
+CNC-002 / presence: computed=supported; reviewed=supported
+Accepted present evidence tied to this serial identifier.
+Next action: Review finding and preserve supporting evidence.
+Accepted evidence: e899962c-4747-4ea4-a0b5-7b1479ca684f
+CNC-002 / installation: computed=supported; reviewed=supported
+Accepted installed evidence tied to this serial identifier.
+Next action: Review finding and preserve supporting evidence.
+Accepted evidence: e899962c-4747-4ea4-a0b5-7b1479ca684f
+CNC-002 / commissioning: computed=unresolved; reviewed=unresolved
+Commissioning certificate is missing or unaccepted; operation alone is insufficient.
+Next action: Request and review the commissioning certificate for this machine.
+Accepted evidence: e899962c-4747-4ea4-a0b5-7b1479ca684f
+CNC-003 / identity: computed=supported; reviewed=supported
+Exact serial with model and site corroboration, accepted by analyst.
+Next action: Review finding and preserve supporting evidence.
+Accepted evidence: 9fceee08-7045-40c3-bca1-e14d82cf2de3
+CNC-003 / purchase: computed=supported; reviewed=supported
+Invoice reference and machine identifier match the register/declared asset.
+Next action: Review finding and preserve supporting evidence.
+Accepted evidence: 9f5ee7db-469d-456e-94f7-74831222aa2b, 9fceee08-7045-40c3-bca1-e14d82cf2de3
+CNC-003 / payment: computed=supported; reviewed=supported
+Accepted payment reference, invoice reference, amount and currency reconcile.
+Next action: Review finding and preserve supporting evidence.
+Accepted evidence: 78bb970e-2bf8-468e-a649-a456ed2e7808, 9f5ee7db-469d-456e-94f7-74831222aa2b
+CNC-003 / presence: computed=supported; reviewed=supported
+Accepted present evidence tied to this serial identifier.
+Next action: Review finding and preserve supporting evidence.
+Accepted evidence: cea02a7e-5925-4573-b972-46a022e54bd0
+CNC-003 / installation: computed=unresolved; reviewed=unresolved
+Equipment is packaged; installation requires clarification.
+Next action: Confirm installation using an analyst observation or installation record; clarify packaged equipment.
+Accepted evidence: cea02a7e-5925-4573-b972-46a022e54bd0
+CNC-003 / commissioning: computed=unresolved; reviewed=unresolved
+Commissioning certificate is missing or unaccepted; operation alone is insufficient.
+Next action: Request and review the commissioning certificate for this machine.
+Accepted evidence: cea02a7e-5925-4573-b972-46a022e54bd0
+Follow-up actions:
+open: Provide commissioning certificate; Synthetic HTTP verification
+open: Provide commissioning certificate;
+open: Clarify installation status of packaged equipment;
+Contextual observations:
+analyst: Operating at site
+analyst: Operating at site
+analyst: Packaged; installation unverified

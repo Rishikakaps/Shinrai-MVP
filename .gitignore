@@ -1,0 +1,18 @@
+.venv/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+*.pyc
+.env
+data/
+*.sqlite*
+*.egg-info/
+tmp/
+# Read-only ChatGPT project mirror; not part of the application distribution.
+/AGENTS.md
+/sources/
+# Local OS/editor state and alternative private environment files.
+.DS_Store
+.env.*
+*.pem
+*.key
