@@ -10,3 +10,5 @@
 .document-preview{display:block;max-height:660px;overflow:auto}.document-preview>img{display:block;width:100%;height:auto;max-height:none;object-fit:contain}.pdf-pages{position:sticky;bottom:0;display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--sheet);padding:10px;font-size:.75rem;border-top:1px solid var(--line)}.pdf-pages button{font-size:.75rem;padding:5px 8px}
 
 .table-scroll{max-height:420px}.table-scroll thead th{position:sticky;top:0;z-index:2;background:var(--paper)}.table-scroll thead th.sticky{z-index:3}
+.result-source{display:block;color:var(--muted);font-size:.69rem;white-space:normal;max-width:160px}.tray-tabs #tray-expand{margin-left:auto;font-size:.8rem;padding:5px 9px}.tray-tabs #tray-close{margin-left:0}body.tray-expanded{--tray:calc(min(65vh,650px) + 46px)}body.tray-expanded .tray-panel{height:min(65vh,650px)}
+@media(max-width:680px){.tray-tabs #tray-expand{font-size:.7rem;padding:5px}.tray-tabs [role=tab]{padding:6px 7px}body.tray-expanded{--tray:calc(60vh + 46px)}body.tray-expanded .tray-panel{height:60vh}}

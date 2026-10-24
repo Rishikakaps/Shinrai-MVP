@@ -1,5 +1,21 @@
 # Verification evidence — 24 October 2026
 
+## Inspection workflow regression
+
+Against source base `3bdf60c`, the Windows SQLite/API suite passed **80 tests**, with **7 Postgres tests skipped** because no isolated `CDI_TEST_DATABASE_URL` was configured. Python lint/format checks and JavaScript syntax checks passed. The existing non-failing Starlette dependency warning remains.
+
+`scripts/test_browser_workflow.cjs` starts an isolated localhost app with a temporary SQLite database and generated test credentials. The headless Edge/Chromium run passed the real certificate upload/extraction/acceptance/link journey, automatic site/assessment/overview progression, incomplete confirmation and rejected-save retention, machine filtering and unassigned files, explicit reviewer overrides with computed results retained, changes made by a separate API client, stale findings, and desktop/mobile tray expansion. Test evidence is synthetic; this does not exercise a live Supabase database, Docker runtime or shared hosting. GitHub Actions now includes this browser regression in addition to its existing API/Postgres checks.
+
+To rerun with Python dependencies installed and the venv active:
+
+```sh
+npm install --prefix .run/browser-tests --no-save playwright@1.62.1
+.run/browser-tests/node_modules/.bin/playwright install chromium
+NODE_PATH="$PWD/.run/browser-tests/node_modules" node scripts/test_browser_workflow.cjs
+```
+
+On Windows set `NODE_PATH` to that absolute `node_modules` directory and `CDI_BROWSER_TEST_PYTHON` to the venv's `Scripts/python.exe`. `CDI_BROWSER_EXECUTABLE` can select an installed Edge/Chromium executable. The runner creates and removes only its own temporary synthetic data.
+
 ## Connected browser / uploaded backend update
 
 The combined suite passed **87 tests**, including a real isolated Postgres 16 server, with one non-failing Starlette dependency warning. Static Python checks and JavaScript syntax validation passed. Without `CDI_TEST_DATABASE_URL`, the seven Postgres tests skip explicitly; the SQLite/browser tests still run.

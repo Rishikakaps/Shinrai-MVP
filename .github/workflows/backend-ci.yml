@@ -41,5 +41,16 @@ jobs:
           node --check app/static/app.js
       - name: SQLite and real Postgres acceptance tests
         run: python -m pytest -q
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install browser regression tools
+        run: |
+          npm install --prefix .run/browser-tests --no-save playwright@1.62.1
+          .run/browser-tests/node_modules/.bin/playwright install --with-deps chromium
+      - name: Connected browser workflow regression
+        env:
+          NODE_PATH: ${{ github.workspace }}/.run/browser-tests/node_modules
+        run: node scripts/test_browser_workflow.cjs
       - name: Build deployment image
         run: docker build -t cdi-backend:ci .

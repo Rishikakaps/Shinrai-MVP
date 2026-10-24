@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased — inspection workflow fixes
+
+- Refresh the overview after review completion and on page navigation. Show analyst-reviewed conclusions with their computed result retained and labeled, plus separate computed support and review counts.
+- Advance successfully saved evidence/site steps and reviewed findings to the next required task; return a completed review to Overview. Preserve forms on validation or save failures.
+- Default evidence files to the selected machine, include shared linked files, and add Show all files / restore filter controls.
+- Add Expand / Restore height controls to the Activity, Requests and History tray, including mobile layouts.
+- Add an isolated synthetic browser regression covering the full certificate journey, rejected saves, overrides, external updates, stale findings, file filtering and desktop/mobile expansion.
+
 ## 0.2.0 — connected FastAPI app and uploaded backend integration
 
 - Implement the softened D browser workflow: Overview, Evidence, Site inspection and Assessment; collapsed navigation/details, bottom records trays, scrollable tables and sequential sections.
