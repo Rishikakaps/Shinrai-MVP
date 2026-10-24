@@ -4,14 +4,14 @@
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="csrf-token" content="{{ viewer.csrf }}">
   <title>Plant inspection · Capital Integrity</title>
-  <link rel="stylesheet" href="/static/app.css"><script src="/static/app.js" defer></script>
+  <link rel="stylesheet" href="/static/app.css"><link rel="stylesheet" href="/static/v2-app.css"><script src="/static/app.js" defer></script><script src="/static/v2-app.js" defer></script>
 </head>
-<body data-role="{{ viewer.role }}">
+<body data-role="{{ viewer.role }}" data-actor="{{ viewer.actor }}">
   <a class="skip-link" href="#workspace">Skip to the current task</a>
   <header class="app-header">
     <a href="#/overview" class="brand">Capital Integrity</a>
     <label class="inspection-picker"><span class="sr-only">Current inspection</span><select id="inspection-picker" aria-label="Current inspection"><option>Loading inspections…</option></select></label>
-    <span class="identity">{{ viewer.actor }} <span class="role-label">{{ viewer.role }}</span></span>
+    <span id="v2-case-control"></span><span class="identity">{{ viewer.actor }} <span class="role-label">{{ viewer.role }}</span></span>
     <button id="logout" class="quiet">Sign out</button>
   </header>
   <nav class="nav-rail" aria-label="Main navigation">
@@ -19,6 +19,9 @@
     <a href="#/evidence" data-view="evidence"><span aria-hidden="true">▤</span><span>Evidence</span></a>
     <a href="#/site" data-view="site"><span aria-hidden="true">⌖</span><span>Site inspection</span></a>
     <a href="#/assessment" data-view="assessment"><span aria-hidden="true">✓</span><span>Assessment</span></a>
+    <a href="#/investments" data-view="investments"><span aria-hidden="true">▥</span><span>Investments</span></a>
+    <a href="#/followups" data-view="followups"><span aria-hidden="true">☑</span><span>Follow-ups</span></a>
+    <a href="#/wearable" data-view="wearable"><span aria-hidden="true">◉</span><span>Wearable</span></a>
     <button id="nav-toggle" class="quiet nav-expand" aria-expanded="false">Expand ›</button>
   </nav>
   <div id="message" class="message" role="status" aria-live="polite" hidden></div>

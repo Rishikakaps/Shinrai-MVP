@@ -6,7 +6,7 @@ const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;',
 const title = value => String(value || '').replaceAll('_', ' ').replace(/^./, c => c.toUpperCase());
 const kinds = ['identity','purchase','payment','presence','installation','commissioning'];
 const statusLabels = {supported:'Supported',partly_supported:'Partly supported',unresolved:'Unresolved',potentially_inconsistent:'Needs clarification',not_assessed:'Not assessed',stale:'Reconcile first'};
-const evidenceKinds = ['equipment_register','declared_asset','invoice','payment_extract','site_image','site_observation','installation_record','commissioning_certificate','financial_statement','management_statement'];
+const evidenceKinds = ['equipment_register','declared_asset','invoice','payment_extract','site_image','site_observation','installation_record','commissioning_certificate','financial_statement','management_statement','operating_log','maintenance_record','production_record','utility_record'];
 const state = {view:'overview',iid:localStorage.getItem('cdi.inspection'),aid:null,cid:null,eid:null,report:null,inspections:[],tray:null,busy:false,dirty:false,preview:null,evidenceStep:null,siteStep:1,siteObservation:null,sitePhoto:null,reviewSaved:false};
 const analyst = document.body.dataset.role === 'analyst';
 const csrf = $('meta[name="csrf-token"]').content;
@@ -26,8 +26,8 @@ const reason = placeholder => field('reason','Reason for this change','','text',
 const action = (name,label,classes='',extra='') => `<button type="button" data-action="${name}" class="${classes}" ${extra}>${label}</button>`;
 const readonly = () => !analyst ? '<p class="banner readonly">Judge access · You can inspect evidence and download reports. Editing is restricted to analysts.</p>' : '';
 function note(text,error=false) { const box=$('#message');box.hidden=false;box.classList.toggle('error',error);box.textContent=text;const close=document.createElement('button');close.textContent='×';close.setAttribute('aria-label','Dismiss message');close.onclick=()=>box.hidden=true;box.append(close); }
-async function api(url,{method='GET',body,raw=false}={}) {
-  const headers={};if(method!=='GET')headers['X-CSRF-Token']=csrf;
+async function api(url,{method='GET',body,raw=false,key}={}) {
+  const headers={};if(method!=='GET'){headers['X-CSRF-Token']=csrf;headers['Idempotency-Key']=key||crypto.randomUUID();}
   if(body && !(body instanceof FormData)){headers['Content-Type']='application/json';body=JSON.stringify(body);}
   const response=await fetch(url,{method,body,headers,credentials:'same-origin',signal:AbortSignal.timeout(90000)});
   if(!response.ok){let detail='';try{detail=(await response.json()).detail;}catch{detail=response.statusText;}
@@ -46,6 +46,7 @@ async function refresh() {
     if(!state.report.claims.some(c=>c.id===state.cid && c.asset_id===state.aid))state.cid=state.report.claims.find(c=>c.asset_id===state.aid&&c.kind==='commissioning')?.id || null;
     if(state.eid&&!state.report.evidence.some(e=>e.id===state.eid))state.eid=null;
   }else state.report=null;
+  if(window.CDIV2)await window.CDIV2.load();
   render();
 }
 async function run(task,success='Saved.') {
@@ -62,11 +63,12 @@ function machinePicker(name='asset_id') {return `<select name="${name}" aria-lab
 function claimPicker(name='claim_id'){return `<select name="${name}" aria-label="Atomic claim">${state.report.claims.filter(c=>c.asset_id===state.aid).map(c=>`<option value="${c.id}" ${c.id===state.cid?'selected':''}>${esc(title(c.kind))}</option>`).join('')}</select>`;}
 function staleBanner(){return state.report&&!state.report.reconciliation_current?`<div class="banner"><strong>Reconciliation required.</strong> Evidence or declarations changed. Earlier findings remain in History, but are not current. ${analyst?action('reconcile','Reconcile now','small-button','data-write'):''}</div>`:'';}
 function render(){
-  const views=['overview','evidence','site','assessment'];if(!views.includes(state.view))state.view='overview';
+  const views=['overview','evidence','site','assessment','investments','followups','wearable'];if(!views.includes(state.view))state.view='overview';
   $$('.nav-rail a').forEach(a=>{a.classList.toggle('active',a.dataset.view===state.view);if(a.dataset.view===state.view)a.setAttribute('aria-current','page');else a.removeAttribute('aria-current');});
+  const extension=window.CDIV2?.render(state.view);if(extension!==undefined){$('#workspace').innerHTML=readonly()+extension;renderTray();renderContext();window.CDIV2.afterRender();return;}
   if(!state.report){$('#workspace').innerHTML=pageHeader('A clear place to begin.','Prepare a separate synthetic Plant A inspection for your first trial.')+`<section class="empty"><h2>Three machines. One careful review.</h2><p>The trial includes reviewed financial extracts and site observations, a missing commissioning certificate and packaged equipment.</p>${analyst?action('prepare','Prepare fresh Plant A trial →','primary','data-write'):'<p>Ask an analyst to prepare an inspection, then refresh.</p>'}${action('reload','Refresh','quiet')}</section>`;renderTray();return;}
   $('#workspace').innerHTML=readonly()+staleBanner()+({overview:overview,evidence:evidenceView,site:siteView,assessment:assessmentView}[state.view])();
-  renderTray();renderContext();if(state.view==='evidence'&&evidence())loadPreview(evidence());if(state.view==='site')loadSitePhoto();
+  window.CDIV2?.decorate(state.view);renderTray();renderContext();if(state.view==='evidence'&&evidence())loadPreview(evidence());if(state.view==='site')loadSitePhoto();
 }
 function overview(){
   const r=state.report,a=asset(),c=claim(),f=finding(state.cid),supported=r.findings.filter(f=>f.computed_status==='supported').length;
@@ -208,6 +210,7 @@ document.addEventListener('change',event=>{
 });
 document.addEventListener('submit',event=>{
   const form=event.target;if(!form.closest('#workspace, #tray-panel, #review-dialog'))return;event.preventDefault();if(!analyst&&form.id!=='select-site-machine'){note('Judge access is read-only.',true);return;}
+  if(form.dataset.v2Form!==undefined)return;
   const v=data(form),submitMode=event.submitter?.value;
   if(form.id==='select-site-machine'){state.aid=v.asset_id;state.cid=state.report.claims.find(c=>c.asset_id===v.asset_id&&c.kind==='presence')?.id;state.siteStep=2;state.siteObservation=null;state.sitePhoto=null;render();return;}
   if(form.id==='upload-evidence')return run(async()=>{const file=form.elements.file.files[0];validateUpload(file);const body=new FormData(form);body.set('captured_at',timestamp(v.captured_at));const item=await api(root()+'/evidence',{method:'POST',body});state.eid=item.id;state.evidenceStep=2;},'Original saved. Extract its text, then verify the fields.');
@@ -248,4 +251,5 @@ $('#logout').addEventListener('click',async()=>{if(state.dirty&&!confirm('Sign o
 document.addEventListener('keydown',event=>{if(event.key==='Escape'){$('#context-drawer').hidden=true;$('#details-toggle').setAttribute('aria-expanded','false');state.tray=null;renderTray();}});
 window.addEventListener('beforeunload',event=>{if(state.dirty){event.preventDefault();event.returnValue='';}});
 window.addEventListener('hashchange',()=>{const next=location.hash.replace('#/','')||'overview';if(state.dirty&&!confirm('Leave this task and discard unsaved entries?')){history.replaceState(null,'','#/'+state.view);return;}state.dirty=false;state.view=next;state.reviewSaved=false;render();$('#workspace').focus({preventScroll:true});});
+window.IntegrityUI={state,api,refresh,render,note,download,dialog,analyst,legacy:{overview,siteView},async changeVisit(iid){state.iid=iid;state.aid=null;state.cid=null;state.eid=null;state.dirty=false;state.siteStep=1;await loadList();await refresh();}};
 (async()=>{try{if(localStorage.getItem('cdi.navExpanded')==='true'){document.body.classList.add('nav-expanded');$('#nav-toggle').setAttribute('aria-expanded','true');$('#nav-toggle').textContent='‹ Collapse';}state.view=location.hash.replace('#/','')||'overview';await loadList();await refresh();}catch(error){$('#workspace').innerHTML='<section class="empty"><h1>We could not open the inspection.</h1><p>Your stored work has not been changed.</p><button data-action="reload">Try again</button> <a href="/login" target="_blank" rel="noopener">Sign in</a></section>';note(error.message,true);}})();

@@ -26,3 +26,5 @@ tmp/
 .tools/
 
 .run/
+
+node_modules/

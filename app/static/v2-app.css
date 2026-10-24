@@ -1,0 +1,261 @@
+.v2-context {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+  margin: 16px 0 24px;
+}
+.v2-context label {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.v2-context select {
+  max-width: 300px;
+}
+.v2-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+.v2-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 10px 0;
+}
+.v2-field input,
+.v2-field select,
+.v2-field textarea,
+.v2-context select,
+#v2-case {
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 10px;
+  background: var(--sheet);
+  color: var(--ink);
+  min-width: 0;
+}
+.v2-field textarea {
+  min-height: 96px;
+  resize: vertical;
+}
+.v2-wide {
+  grid-column: 1/-1;
+}
+.v2-form {
+  padding: 16px 0;
+}
+.v2-form fieldset {
+  border: 1px solid var(--line);
+  margin: 16px 0;
+  max-height: 260px;
+  overflow: auto;
+}
+.v2-interview {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(260px, 1fr);
+  gap: 24px;
+  margin-top: 26px;
+}
+.v2-interview aside {
+  background: var(--sage);
+  padding: 22px;
+}
+.v2-question {
+  border-bottom: 1px solid var(--line);
+  padding: 14px 0;
+}
+.v2-question h3 {
+  font-size: 1.35rem;
+}
+.v2-question button {
+  margin: 4px;
+}
+.v2-camera {
+  width: 100%;
+  max-height: 420px;
+  background: #252b24;
+  object-fit: contain;
+}
+.v2-audio {
+  padding: 16px 0;
+  border-bottom: 1px solid var(--line);
+}
+.v2-audio audio {
+  display: block;
+  width: min(100%, 500px);
+  margin: 10px 0;
+}
+.v2-hud {
+  background: #252b24;
+  color: #fffefa;
+  padding: 36px;
+  max-width: 700px;
+  min-height: 300px;
+  border-radius: 5px;
+}
+.v2-hud h2 {
+  font-family: "Segoe UI", sans-serif;
+  font-size: 1.7rem;
+}
+.v2-hud a {
+  color: #e3e8dd;
+}
+.v2-saving [data-v2-form] button[type="submit"] {
+  pointer-events: none;
+  opacity: 0.6;
+}
+#v2-audit pre {
+  max-height: 340px;
+  overflow: auto;
+  white-space: pre-wrap;
+}
+.v2-assessment {
+  margin-top: 28px;
+}
+.nav-rail {
+  overflow-y: auto;
+  gap: 3px;
+}
+.nav-rail a {
+  min-height: 58px;
+  padding: 8px 3px;
+}
+#v2-case-control {
+  max-width: 230px;
+}
+#v2-case {
+  max-width: 180px;
+  padding: 4px;
+  font-size: 0.82rem;
+}
+.v2-context .status {
+  white-space: normal;
+}
+button[data-v2],
+.v2-form button {
+  min-height: 42px;
+}
+.work-sheet > summary {
+  cursor: pointer;
+  font-family: Georgia, serif;
+  font-size: 1.3rem;
+}
+.v2-audio button {
+  margin: 5px;
+}
+.v2-form .check-label {
+  margin: 12px 0;
+}
+.v2-form .v2-field .v2-field {
+  margin: 0;
+}
+.v2-hud p {
+  line-height: 1.6;
+}
+@media (max-width: 850px) {
+  .v2-interview {
+    grid-template-columns: 1fr;
+  }
+  .app-header {
+    height: auto;
+    min-height: 64px;
+    flex-wrap: wrap;
+    padding: 10px 14px;
+    gap: 8px;
+  }
+  .identity {
+    font-size: 0.74rem;
+  }
+  .brand {
+    font-size: 1.1rem;
+  }
+  #v2-case-control {
+    order: 4;
+    max-width: 100%;
+  }
+  #v2-case {
+    max-width: 220px;
+  }
+  .v2-grid {
+    grid-template-columns: 1fr;
+  }
+  .v2-context {
+    gap: 12px;
+  }
+  .v2-context label {
+    width: 100%;
+  }
+  .v2-context select {
+    width: 100%;
+    max-width: none;
+  }
+  .nav-rail {
+    top: 100px;
+  }
+  .v2-form fieldset {
+    max-height: 210px;
+  }
+  .v2-interview aside {
+    padding: 16px;
+  }
+  .v2-hud {
+    padding: 24px;
+  }
+  .v2-camera {
+    max-height: 320px;
+  }
+}
+@media (max-width: 560px) {
+  :root {
+    --rail: 66px;
+  }
+  .nav-rail a {
+    font-size: 0.63rem;
+    min-height: 56px;
+  }
+  .nav-rail a > span:first-child {
+    font-size: 1.2rem;
+  }
+  #workspace {
+    padding: 24px 14px 90px;
+  }
+  .v2-form input,
+  .v2-form textarea,
+  .v2-form select {
+    font-size: 16px;
+  }
+  .page-header {
+    flex-direction: column;
+    gap: 10px;
+  }
+  .v2-interview {
+    gap: 18px;
+  }
+  .work-sheet {
+    padding: 16px;
+  }
+  .v2-context {
+    font-size: 0.9rem;
+  }
+  .section-actions {
+    flex-wrap: wrap;
+  }
+  .v2-form button {
+    width: auto;
+  }
+  .inspection-picker {
+    flex-basis: 50%;
+    max-width: 100%;
+  }
+  .identity {
+    margin-left: 0;
+  }
+  .nav-rail {
+    top: 115px;
+  }
+  .v2-hud h2 {
+    font-size: 1.35rem;
+  }
+}

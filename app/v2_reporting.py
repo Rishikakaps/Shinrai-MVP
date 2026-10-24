@@ -2,6 +2,7 @@
 
 import io
 import json
+from pathlib import Path
 from xml.sax.saxutils import escape
 
 from fastapi import Request
@@ -181,20 +182,24 @@ def pdf_report(snapshot, base_url):
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
     from reportlab.pdfbase import pdfmetrics
-    from reportlab.pdfbase.cidfonts import UnicodeCIDFont
+    from reportlab.pdfbase.ttfonts import TTFont
     from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
-    pdfmetrics.registerFont(UnicodeCIDFont("HeiseiMin-W3"))
+    # Embed the font: CID-only references require reader-installed Japanese fonts.
+    if "NotoSansJP" not in pdfmetrics.getRegisteredFontNames():
+        pdfmetrics.registerFont(TTFont("NotoSansJP", str(Path(__file__).parent / "fonts" / "NotoSansJP.ttf")))
     styles = getSampleStyleSheet()
+    for style in styles.byName.values():
+        style.fontName = "NotoSansJP"
     styles.add(
         ParagraphStyle(
-            name="BodyCJK", fontName="HeiseiMin-W3", fontSize=9, leading=14, wordWrap="CJK", spaceAfter=6
+            name="BodyCJK", fontName="NotoSansJP", fontSize=9, leading=14, wordWrap="CJK", spaceAfter=6
         )
     )
     styles.add(
         ParagraphStyle(
             name="MetaV2",
-            fontName="Helvetica",
+            fontName="NotoSansJP",
             fontSize=8,
             leading=11,
             textColor=colors.HexColor("#58665c"),

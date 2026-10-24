@@ -480,5 +480,8 @@ def install_v2(app, store, authenticate, get_report):
     install_copilot(router, app, service, authenticate)
     install_reporting(router, app, service, authenticate, get_report)
     install_reminders(router, app, service, authenticate)
+    from app.v2_chat import install_chat
+
+    install_chat(router, app, service, authenticate)
     app.include_router(router)
     return service

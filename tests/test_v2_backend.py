@@ -597,13 +597,21 @@ def test_pdf_json_reports_and_restart_preserve_real_audio(v2):
     p = ok(project(v2))
     audio = ok(recording(v2, share=True))
     session = interview(v2, p["id"])
-    s = segment(v2, session)
+    s = segment(v2, session, "機械の停止時間を確認します。")
     pdf = v2.client.get(v2.root + "/report.pdf")
     assert pdf.status_code == 200 and pdf.content.startswith(b"%PDF-")
     from pypdf import PdfReader
 
-    text = "\n".join(page.extract_text() for page in PdfReader(io.BytesIO(pdf.content)).pages)
+    reader = PdfReader(io.BytesIO(pdf.content))
+    text = "\n".join(page.extract_text() for page in reader.pages)
     assert "SYNTHETIC DEMO" in text and audio["sha256"] in text
+    assert s["text"] in text
+    embedded = [
+        font.get_object().get("/FontDescriptor")
+        for page in reader.pages
+        for font in page["/Resources"]["/Font"].get_object().values()
+    ]
+    assert any(descriptor and "/FontFile2" in descriptor.get_object() for descriptor in embedded)
     root = v2.client.app.state.store.root
     with TestClient(create_app(root, TOKENS), headers={"Authorization": "Bearer " + ANALYST}) as restarted:
         exported = ok(restarted.get(v2.root + "/export"))

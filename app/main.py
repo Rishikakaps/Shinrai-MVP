@@ -741,5 +741,8 @@ def create_app(
     from app.v2_routes import install_v2
 
     install_v2(app, store, authenticate, get_report)
+    from app.label_scan import install_label_scan
+
+    install_label_scan(app, store, authenticate)
     install_ui(app, store, sessions, authenticate)
     return app
