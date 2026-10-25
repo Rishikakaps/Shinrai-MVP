@@ -1,5 +1,6 @@
 """FastAPI-served browser UI, controlled sign-in, and non-destructive synthetic trial helpers."""
 
+import hashlib
 import hmac
 import re
 import secrets
@@ -21,6 +22,12 @@ from app.preview import render_page
 def install_ui(app, store, sessions, authenticate):
     base = Path(__file__).parent
     templates = Jinja2Templates(directory=base / "templates")
+
+    def static_asset(name):
+        version = hashlib.sha256((base / "static" / name).read_bytes()).hexdigest()[:16]
+        return f"/static/{name}?v={version}"
+
+    templates.env.globals["static_asset"] = static_asset
     app.mount("/static", StaticFiles(directory=base / "static"), name="static")
     Actor = Annotated[str, Depends(authenticate)]
 
@@ -38,6 +45,8 @@ def install_ui(app, store, sessions, authenticate):
         )
         if not request.url.path.startswith("/static/"):
             response.headers["Cache-Control"] = "no-store"
+        else:
+            response.headers["Cache-Control"] = "no-cache"
         return response
 
     def login_page(request, error=None, status_code=200):

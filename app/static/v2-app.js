@@ -36,6 +36,7 @@
     preview: null,
     clips: [],
     camera: null,
+    mediaRequest: null,
     scan: null,
     scanFile: null,
     analysis: null,
@@ -62,7 +63,7 @@
         b.inspection_id === visit() &&
         b.local_asset_id === U.state.aid,
     );
-  const canNavigate = () => !S.recording && !S.pending && !S.camera;
+  const canNavigate = () => !S.recording && !S.pending && !S.camera && !S.mediaRequest;
   const reason = "Analyst saved change through the connected V2 interface";
   const source = (quote) => ({
     kind: "analyst_observation",
@@ -727,7 +728,15 @@
     ).forEach((el) => {
       el.disabled = S.recording || S.pending > 0 || !analyst;
     });
-    const active = S.recording || S.pending > 0;
+    const active = S.recording || S.pending > 0 || !!S.mediaRequest;
+    const recordButton = $("[data-v2=record]");
+    if (recordButton)
+      recordButton.disabled = active || !S.physical || !!(S.scan && S.scan.identity_result !== "matches_declared_serial");
+    const stopButton = $("[data-v2=stop]");
+    if (stopButton)
+      stopButton.disabled = !(S.recording || S.mediaRequest?.kind === "microphone");
+    const cameraButton = $("[data-v2=camera]");
+    if (cameraButton) cameraButton.disabled = active || !!S.camera;
     for (const el of $$(
       "[name=capture_type],[name=audio_language],[name=speaker],[name=operating_mode],#v2-consent,#v2-share,#v2-synthetic,#v2-incremental,#v2-speaker-confirmed",
     ))
@@ -898,7 +907,7 @@
       throw Error("No supported microphone codec; upload a WAV/M4A clip.");
     if (S.recording || S.pending)
       throw Error("Finish the current capture and processing first.");
-    S.stream = await navigator.mediaDevices.getUserMedia({
+    S.stream = await requestMedia({
       audio:
         context.kind === "machine_acoustic"
           ? {
@@ -908,7 +917,7 @@
             }
           : true,
       video: false,
-    });
+    }, "microphone");
     S.recording = true;
     afterRender();
     $("#v2-record-status").textContent =
@@ -1014,6 +1023,7 @@
     if (c) c.innerHTML = candidates();
   }
   function stopRecording() {
+    if (S.mediaRequest?.kind === "microphone") S.mediaRequest.cancel();
     S.recording = false;
     clearTimeout(S.timer);
     if (S.recorder?.state === "recording") S.recorder.stop();
@@ -1063,10 +1073,11 @@
       );
     if (S.recording || S.pending)
       throw Error("Stop recording before changing capture devices.");
-    S.camera = await navigator.mediaDevices.getUserMedia({
+    closeCamera();
+    S.camera = await requestMedia({
       video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 } },
       audio: false,
-    });
+    }, "camera");
     const v = $("#v2-camera");
     v.hidden = false;
     v.srcObject = S.camera;
@@ -1075,6 +1086,7 @@
     afterRender();
   }
   function closeCamera() {
+    if (S.mediaRequest?.kind === "camera") S.mediaRequest.cancel();
     S.camera?.getTracks().forEach((t) => t.stop());
     S.camera = null;
     const v = $("#v2-camera");
@@ -1084,6 +1096,32 @@
     }
     if ($("#v2-capture-photo")) $("#v2-capture-photo").hidden = true;
     afterRender();
+  }
+  async function requestMedia(constraints, kind) {
+    if (S.mediaRequest) throw Error("Finish or cancel the current permission request first.");
+    const request = { kind, cancelled: false, cancel: null };
+    let timer;
+    const interrupted = new Promise((_, reject) => {
+      request.cancel = (message = "Permission request cancelled. No recording was saved.") => {
+        request.cancelled = true;
+        reject(Error(message));
+      };
+      timer = setTimeout(() => request.cancel("Permission request timed out. Check the browser permission prompt, then retry."), 45000);
+    });
+    S.mediaRequest = request;
+    afterRender();
+    U.note(`Waiting for ${kind} permission. Use ${kind === "camera" ? "Close camera" : "Stop recording"} to cancel.`);
+    const pending = Promise.resolve().then(() => navigator.mediaDevices.getUserMedia(constraints));
+    pending.then(stream => {
+      if (request.cancelled) stream.getTracks().forEach(track => track.stop());
+    }, () => {});
+    try {
+      return await Promise.race([pending, interrupted]);
+    } finally {
+      clearTimeout(timer);
+      if (S.mediaRequest === request) S.mediaRequest = null;
+      afterRender();
+    }
   }
   function discardConfirmed() {
     return (
@@ -1285,8 +1323,8 @@
     )
       return;
     if (
-      (S.recording || S.pending) &&
-      !["stop", "question"].includes(b.dataset.v2)
+      (S.recording || S.pending || S.mediaRequest) &&
+      !["stop", "camera-stop", "question"].includes(b.dataset.v2)
     ) {
       U.note("Stop capture and wait for pending processing first.", true);
       return;
@@ -1296,6 +1334,11 @@
       !["open-machine", "select-segment", "select-task"].includes(b.dataset.v2)
     ) {
       U.note("Judge access is read-only.", true);
+      return;
+    }
+    // Stop must remain usable while an asynchronous permission dialog is open.
+    if (["stop", "camera-stop"].includes(b.dataset.v2)) {
+      actions[b.dataset.v2](b);
       return;
     }
     act(() => actions[b.dataset.v2]?.(b));
@@ -1694,7 +1737,7 @@
     "click",
     (e) => {
       if (
-        (S.recording || S.pending || S.camera) &&
+        (S.recording || S.pending || S.camera || S.mediaRequest) &&
         e.target.closest('a[href^="#/"],#logout')
       ) {
         e.preventDefault();
@@ -1724,5 +1767,26 @@
     }
   });
   window.CDIV2 = { load, render, decorate, afterRender };
+  // The case/visit header wraps differently on each phone and after case load.
+  // Measure its actual height instead of guessing a fixed sticky offset.
+  const appHeader = document.querySelector(".app-header");
+  const appNav = document.querySelector(".nav-rail");
+  function updateChromeSize() {
+    for (const [element, name] of [
+      [appHeader, "--app-header-height"],
+      [appNav, "--app-nav-height"],
+    ]) {
+      const height = element?.getBoundingClientRect().height;
+      if (height > 0)
+        document.documentElement.style.setProperty(name, Math.ceil(height) + "px");
+    }
+  }
+  if (typeof ResizeObserver !== "undefined") {
+    const chromeObserver = new ResizeObserver(updateChromeSize);
+    if (appHeader) chromeObserver.observe(appHeader);
+    if (appNav) chromeObserver.observe(appNav);
+  }
+  window.addEventListener("resize", updateChromeSize);
+  updateChromeSize();
   if (U.state.report) U.refresh().catch((e) => U.note(e.message, true));
 })();

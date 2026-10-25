@@ -115,8 +115,12 @@
   margin-top: 28px;
 }
 .nav-rail {
+  top: var(--app-header-height, 64px);
   overflow-y: auto;
   gap: 3px;
+}
+.message {
+  top: var(--app-header-height, 64px);
 }
 .nav-rail a {
   min-height: 58px;
@@ -191,9 +195,6 @@ button[data-v2],
     width: 100%;
     max-width: none;
   }
-  .nav-rail {
-    top: 100px;
-  }
   .v2-form fieldset {
     max-height: 210px;
   }
@@ -210,10 +211,6 @@ button[data-v2],
 @media (max-width: 560px) {
   :root {
     --rail: 66px;
-  }
-  .nav-rail a {
-    font-size: 0.63rem;
-    min-height: 56px;
   }
   .nav-rail a > span:first-child {
     font-size: 1.2rem;
@@ -252,10 +249,24 @@ button[data-v2],
   .identity {
     margin-left: 0;
   }
-  .nav-rail {
-    top: 115px;
-  }
   .v2-hud h2 {
     font-size: 1.35rem;
+  }
+}
+@media (max-width: 680px) {
+  .nav-rail {
+    top: var(--app-header-height, 145px);
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+  .nav-rail a,
+  .nav-expanded .nav-rail a {
+    flex: 0 0 82px;
+    min-height: 64px;
+    font-size: 0.78rem;
+    padding: 8px 4px;
+  }
+  .message {
+    top: calc(var(--app-header-height, 145px) + var(--app-nav-height, 64px));
   }
 }

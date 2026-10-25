@@ -4,7 +4,7 @@
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="csrf-token" content="{{ viewer.csrf }}">
   <title>Plant inspection · Capital Integrity</title>
-  <link rel="stylesheet" href="/static/app.css"><link rel="stylesheet" href="/static/v2-app.css"><script src="/static/app.js" defer></script><script src="/static/v2-app.js" defer></script>
+  <link rel="stylesheet" href="{{ static_asset('app.css') }}"><link rel="stylesheet" href="{{ static_asset('v2-app.css') }}"><script src="{{ static_asset('app.js') }}" defer></script><script src="{{ static_asset('v2-app.js') }}" defer></script>
 </head>
 <body data-role="{{ viewer.role }}" data-actor="{{ viewer.actor }}">
   <a class="skip-link" href="#workspace">Skip to the current task</a>
