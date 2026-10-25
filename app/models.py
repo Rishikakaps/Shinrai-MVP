@@ -87,11 +87,17 @@ class Inspection(Entity):
 
 class AssetCreate(Model):
     tag: Short
-    serial: Short
+    serial: Short | None = None
     model: Short
     site: Short
-    invoice_ref: Short
-    payment_ref: Short
+    invoice_ref: Short | None = None
+    payment_ref: Short | None = None
+    manufacturer: Short | None = None
+    rated_power_kw: Short | None = None
+    horse_power: Short | None = None
+    rated_voltage_v: Short | None = None
+    rated_speed_rpm: Short | None = None
+    provenance: dict = Field(default_factory=dict)
     reason: Text = "Declared asset setup"
 
 
@@ -101,11 +107,17 @@ class AssetUpdate(AssetCreate):
 
 class Asset(Entity):
     tag: str
-    serial: str
+    serial: str | None = None
     model: str
     site: str
-    invoice_ref: str
-    payment_ref: str
+    invoice_ref: str | None = None
+    payment_ref: str | None = None
+    manufacturer: str | None = None
+    rated_power_kw: str | None = None
+    horse_power: str | None = None
+    rated_voltage_v: str | None = None
+    rated_speed_rpm: str | None = None
+    provenance: dict = Field(default_factory=dict)
 
 
 class Claim(Entity):

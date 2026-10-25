@@ -66,7 +66,7 @@ def evaluate(store, db, scope, fingerprint):
         if not claim.confirmed:
             status, explanation = Status.not_assessed, "Analyst has not confirmed the declared claim."
         else:
-            scoped = [e for e in supports if norm(e.facts.serial) == norm(asset.serial)]
+            scoped = [e for e in supports if asset.serial and norm(e.facts.serial) == norm(asset.serial)]
             # A label accepted by an analyst still cannot resolve duplicated serial identities.
             duplicate = sum(norm(a.serial) == norm(asset.serial) for a in assets) > 1
             if claim.kind == "identity":

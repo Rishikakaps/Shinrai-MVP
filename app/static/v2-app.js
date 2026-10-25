@@ -100,7 +100,7 @@
   const head = (name, sub, tools = "") =>
     `<header class="page-header"><div><h1>${name}</h1><p class="muted">${sub}</p></div><div class="tools">${tools}</div></header>`;
   const ctx = () =>
-    `<div class="v2-context"><label>Machine <select id="v2-machine" ${!canNavigate() ? "disabled" : ""}>${opts(U.state.report.assets, U.state.aid, (a) => a.tag + " · " + a.serial)}</select></label><span class="status ${S.physical ? "supported" : "unresolved"}">${S.physical ? "Identity confirmed" : "Identity not confirmed"}</span><label>Investment <select id="v2-project" ${!canNavigate() ? "disabled" : ""}><option value="">No project selected</option>${opts(S.snap?.investments.filter((p) => p.asset_links.some((l) => l.physical_asset_id === S.physical)) || [], S.project, (p) => p.title)}</select></label></div>`;
+    `<div class="v2-context"><label>Machine <select id="v2-machine" ${!canNavigate() ? "disabled" : ""}>${opts(U.state.report.assets, U.state.aid, (a) => a.tag + " · " + (a.serial || "serial unknown"))}</select></label><span class="status ${S.physical ? "supported" : "unresolved"}">${S.physical ? "Identity confirmed" : "Identity not confirmed"}</span><label>Investment <select id="v2-project" ${!canNavigate() ? "disabled" : ""}><option value="">No project selected</option>${opts(S.snap?.investments.filter((p) => p.asset_links.some((l) => l.physical_asset_id === S.physical)) || [], S.project, (p) => p.title)}</select></label></div>`;
   async function load() {
     S.cases = await U.api("/api/v1/cases");
     S.caps = await U.api("/api/v1/capabilities");
@@ -198,7 +198,7 @@
         e.confirmed &&
         !["management_statement", "financial_statement"].includes(e.kind) &&
         e.facts.serial?.trim().toLowerCase() ===
-          a.serial.trim().toLowerCase() &&
+          (a.serial || "").trim().toLowerCase() &&
         e.facts.model === a.model &&
         e.facts.site === a.site,
     );
@@ -707,12 +707,13 @@
       )
     ) {
       if (!S.snap)
-        return setup() + (view === "overview" ? U.legacy.overview() : "");
-      return { overview, site, investments, followups, wearable }[view]();
+        return setup() + (view === "overview" ? U.legacy.overview() : "") + (window.CDIIntake?.panel(view) || "");
+      return { overview, site, investments, followups, wearable }[view]() + (window.CDIIntake?.panel(view) || "");
     }
     return undefined;
   }
   function decorate(view) {
+    if (view === "evidence") $("#workspace").insertAdjacentHTML("afterbegin", window.CDIIntake?.panel(view) || "");
     if (S.snap && view === "assessment")
       $("#workspace").insertAdjacentHTML("beforeend", assessment());
     if (S.snap && view === "evidence")
@@ -745,12 +746,8 @@
     if (host)
       host.innerHTML = `<label class="small">Case <select id="v2-case" ${!canNavigate() ? "disabled" : ""}><option value="">Unenrolled visit</option>${opts(S.cases, S.snap?.case.id, (c) => c.company)}</select></label>`;
     const picker = $("#inspection-picker");
-    if (picker && S.snap) {
-      picker.innerHTML = opts(
-        S.snap.v1_inspections.map((v) => v.inspection),
-        visit(),
-        (v) => v.name,
-      );
+    if (picker) {
+      picker.innerHTML = opts(U.state.inspections || [], visit(), (v) => v.name);
       picker.disabled = !canNavigate();
     }
     if (S.recording || S.pending) {
@@ -1453,8 +1450,8 @@
           throw Error("Accept matching identity evidence first.");
         const prior = S.snap.physical_assets.find(
           (a) =>
-            a.serial.trim().toLowerCase() ===
-            asset().serial.trim().toLowerCase(),
+            (a.serial || "").trim().toLowerCase() ===
+            (asset().serial || "").trim().toLowerCase(),
         );
         const body = {
           inspection_id: visit(),

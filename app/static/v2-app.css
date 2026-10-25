@@ -270,3 +270,4 @@ button[data-v2],
     top: calc(var(--app-header-height, 145px) + var(--app-nav-height, 64px));
   }
 }
+.intake-raw{white-space:pre-wrap;overflow-wrap:anywhere;max-height:280px;overflow:auto;font-size:.78rem;background:var(--sheet);padding:12px}.intake-busy [data-intake],.intake-busy [data-intake-form] button{pointer-events:none;opacity:.55}#evidence-inbox form{display:grid;gap:12px}#registry-records form{display:grid;gap:12px}

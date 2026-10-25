@@ -213,6 +213,8 @@ class V2Store:
     def confirm_identity(self, db, case_id, body, actor, physical=None):
         self.require_visit(db, case_id, body.inspection_id)
         asset = self.store.get(db, Asset, body.local_asset_id, body.inspection_id)
+        if not asset.serial:
+            raise HTTPException(422, "Record a reviewed serial before confirming physical identity")
         ev = self.evidence(db, body.identity_evidence_id, case_id, accepted=True)
         if ev.inspection_id != body.inspection_id:
             raise HTTPException(422, "Identity must be established using this visit's evidence")

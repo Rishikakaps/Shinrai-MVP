@@ -344,59 +344,17 @@ def create_app(
 
     @router.post("/inspections/{iid}/assets", response_model=Asset, status_code=201)
     def create_asset(iid: str, body: AssetCreate, actor: Actor):
+        from app.registry import save_asset
+
         with store.transaction() as db:
-            inspection(db, iid)
-            if any(engine.norm(a.tag) == engine.norm(body.tag) for a in store.list(db, Asset, iid)):
-                raise HTTPException(409, "Asset tag already exists")
-            asset = Asset(inspection_id=iid, **body.model_dump(exclude={"reason"}))
-            store.save(db, asset, actor, body.reason, "asset.created")
-            expectations = {
-                "identity": body.serial,
-                "purchase": body.invoice_ref,
-                "payment": body.payment_ref,
-                "presence": "present",
-                "installation": "installed",
-                "commissioning": "commissioned",
-            }
-            for kind in ClaimKind:
-                store.save(
-                    db,
-                    Claim(inspection_id=iid, asset_id=asset.id, kind=kind, expected=expectations[kind]),
-                    actor,
-                    body.reason,
-                    "claim.declared",
-                )
-            activate(db, iid, actor, body.reason)
-            return asset
+            return save_asset(store, db, iid, body, actor)
 
     @router.patch("/inspections/{iid}/assets/{aid}", response_model=Asset)
     def update_asset(iid: str, aid: str, body: AssetUpdate, actor: Actor):
+        from app.registry import save_asset
+
         with store.transaction() as db:
-            item = store.get(db, Asset, aid, iid)
-            version_check(item, body.version)
-            if any(
-                a.id != aid and engine.norm(a.tag) == engine.norm(body.tag)
-                for a in store.list(db, Asset, iid)
-            ):
-                raise HTTPException(409, "Asset tag already exists")
-            for field in ("tag", "serial", "model", "site", "invoice_ref", "payment_ref"):
-                setattr(item, field, getattr(body, field))
-            store.save(db, item, actor, body.reason, "asset.corrected")
-            expected = {
-                "identity": item.serial,
-                "purchase": item.invoice_ref,
-                "payment": item.payment_ref,
-                "presence": "present",
-                "installation": "installed",
-                "commissioning": "commissioned",
-            }
-            for claim in store.list(db, Claim, iid):
-                if claim.asset_id == aid:
-                    claim.expected = expected[claim.kind]
-                    claim.confirmed = False
-                    store.save(db, claim, actor, body.reason, "claim.declaration_corrected")
-            activate(db, iid, actor, body.reason)
-            return item
+            return save_asset(store, db, iid, body, actor, aid)
 
     @router.get("/inspections/{iid}/claims", response_model=list[Claim])
     def list_claims(iid: str):
@@ -411,9 +369,9 @@ def create_app(
             version_check(item, body.version)
             asset = store.get(db, Asset, item.asset_id, iid)
             locked = {
-                "identity": asset.serial,
-                "purchase": asset.invoice_ref,
-                "payment": asset.payment_ref,
+                "identity": asset.serial or "Unknown serial — review required",
+                "purchase": asset.invoice_ref or "Unknown invoice — review required",
+                "payment": asset.payment_ref or "Unknown payment — review required",
                 "presence": "present",
                 "installation": "installed",
                 "commissioning": "commissioned",
@@ -751,5 +709,8 @@ def create_app(
     from app.label_scan import install_label_scan
 
     install_label_scan(app, store, authenticate)
+    from app.intake import install_intake
+
+    install_intake(app, store, authenticate)
     install_ui(app, store, sessions, authenticate)
     return app
