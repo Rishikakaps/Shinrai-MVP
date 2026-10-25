@@ -32,3 +32,13 @@ may need better focus/framing. Capture with MTR-031 selected. Exact unique OCR s
 association adds a context-only identity link; conflicts require review. The source
 is not evidence that a machine exists at the demo site. No claim becomes supported
 solely because the serial matches. Original scans and audit records remain intact.
+
+
+The import also fills the operational manufacturer/rating/provenance fields used
+by the editable registry and its manufacturer/model suggestions. Older imports
+with nameplate metadata but empty operational fields receive a one-time upgrade;
+subsequent runs preserve edited values. Registry corrections retain source
+nameplate metadata unless explicitly replaced. The main overview shows the six
+claims beside ratings and protected source-file links. `?inspection=<id>&asset=MTR-031`
+selects the registry/sample directly. Existing evidence-intake review proposals,
+file filtering, automatic workflow navigation and expandable tray remain available.

@@ -1,0 +1,146 @@
+{
+  "pipeline": "pretrained_tesseract_zxing_and_rules_v1",
+  "trained_classifier": false,
+  "dataset": "project-authored synthetic held-out fixtures; not industrial production accuracy",
+  "samples": 14,
+  "classification_accuracy": 1.0,
+  "classification_macro_f1": 1.0,
+  "serial_exact_match": {
+    "correct": 9,
+    "total_with_known_ground_truth": 9
+  },
+  "automatic_associations": 0,
+  "automatic_association_coverage": 0,
+  "confusion_matrix": [
+    {
+      "truth": "commissioning_certificate",
+      "prediction": "commissioning_certificate",
+      "count": 5
+    },
+    {
+      "truth": "inspection_report",
+      "prediction": "inspection_report",
+      "count": 2
+    },
+    {
+      "truth": "machine_nameplate",
+      "prediction": "machine_nameplate",
+      "count": 3
+    },
+    {
+      "truth": "other",
+      "prediction": "other",
+      "count": 1
+    },
+    {
+      "truth": "purchase_invoice",
+      "prediction": "purchase_invoice",
+      "count": 1
+    },
+    {
+      "truth": "technical_specification",
+      "prediction": "technical_specification",
+      "count": 2
+    }
+  ],
+  "results": [
+    {
+      "sample_id": "commissioning-002",
+      "expected_category": "commissioning_certificate",
+      "predicted_category": "commissioning_certificate",
+      "resolution": "EXACT_SERIAL_CANDIDATE",
+      "automatic_association": false
+    },
+    {
+      "sample_id": "specification-002",
+      "expected_category": "technical_specification",
+      "predicted_category": "technical_specification",
+      "resolution": "EXACT_SERIAL_CANDIDATE",
+      "automatic_association": false
+    },
+    {
+      "sample_id": "invoice-002",
+      "expected_category": "purchase_invoice",
+      "predicted_category": "purchase_invoice",
+      "resolution": "EXACT_SERIAL_CANDIDATE",
+      "automatic_association": false
+    },
+    {
+      "sample_id": "inspection-002",
+      "expected_category": "inspection_report",
+      "predicted_category": "inspection_report",
+      "resolution": "EXACT_SERIAL_CANDIDATE",
+      "automatic_association": false
+    },
+    {
+      "sample_id": "commissioning-003",
+      "expected_category": "commissioning_certificate",
+      "predicted_category": "commissioning_certificate",
+      "resolution": "EXACT_SERIAL_CANDIDATE",
+      "automatic_association": false
+    },
+    {
+      "sample_id": "CNC-002-misnamed-actually-003",
+      "expected_category": "commissioning_certificate",
+      "predicted_category": "commissioning_certificate",
+      "resolution": "EXACT_SERIAL_CANDIDATE",
+      "automatic_association": false
+    },
+    {
+      "sample_id": "model-only",
+      "expected_category": "technical_specification",
+      "predicted_category": "technical_specification",
+      "resolution": "MODEL_ONLY_NOT_IDENTITY",
+      "automatic_association": false
+    },
+    {
+      "sample_id": "partial-serial",
+      "expected_category": "machine_nameplate",
+      "predicted_category": "machine_nameplate",
+      "resolution": "PARTIAL_IDENTIFIER",
+      "automatic_association": false
+    },
+    {
+      "sample_id": "unknown",
+      "expected_category": "other",
+      "predicted_category": "other",
+      "resolution": "UNASSIGNED",
+      "automatic_association": false
+    },
+    {
+      "sample_id": "multiple-machines",
+      "expected_category": "inspection_report",
+      "predicted_category": "inspection_report",
+      "resolution": "MULTIPLE_OR_CONFLICTING_IDENTIFIERS",
+      "automatic_association": false
+    },
+    {
+      "sample_id": "contradictory-id-serial",
+      "expected_category": "commissioning_certificate",
+      "predicted_category": "commissioning_certificate",
+      "resolution": "CONTRADICTORY_IDENTIFIERS",
+      "automatic_association": false
+    },
+    {
+      "sample_id": "duplicate-commissioning-002",
+      "expected_category": "commissioning_certificate",
+      "predicted_category": "commissioning_certificate",
+      "resolution": "EXACT_SERIAL_CANDIDATE",
+      "automatic_association": false
+    },
+    {
+      "sample_id": "nameplate-CNC-002",
+      "expected_category": "machine_nameplate",
+      "predicted_category": "machine_nameplate",
+      "resolution": "EXACT_SERIAL_CANDIDATE",
+      "automatic_association": false
+    },
+    {
+      "sample_id": "nameplate-CNC-003",
+      "expected_category": "machine_nameplate",
+      "predicted_category": "machine_nameplate",
+      "resolution": "EXACT_SERIAL_CANDIDATE",
+      "automatic_association": false
+    }
+  ]
+}

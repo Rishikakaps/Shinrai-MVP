@@ -4,7 +4,7 @@
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="csrf-token" content="{{ viewer.csrf }}">
   <title>Plant inspection · Capital Integrity</title>
-  <link rel="stylesheet" href="/static/app.css"><link rel="stylesheet" href="/static/v2-app.css"><script src="/static/app.js" defer></script><script src="/static/v2-app.js" defer></script>
+  <link rel="stylesheet" href="{{ static_asset('app.css') }}"><link rel="stylesheet" href="{{ static_asset('v2-app.css') }}"><script src="{{ static_asset('app.js') }}" defer></script><script src="{{ static_asset('registry.js') }}" defer></script><script src="{{ static_asset('v2-app.js') }}" defer></script>
 </head>
 <body data-role="{{ viewer.role }}" data-actor="{{ viewer.actor }}">
   <a class="skip-link" href="#workspace">Skip to the current task</a>
@@ -17,6 +17,7 @@
   <nav class="nav-rail" aria-label="Main navigation">
     <a href="#/overview" data-view="overview"><span aria-hidden="true">⌂</span><span>Overview</span></a>
     <a href="#/evidence" data-view="evidence"><span aria-hidden="true">▤</span><span>Evidence</span></a>
+    <a href="/evidence-inbox"><span aria-hidden="true">⇥</span><span>Evidence Inbox</span></a>
     <a href="#/site" data-view="site"><span aria-hidden="true">⌖</span><span>Site inspection</span></a>
     <a href="#/assessment" data-view="assessment"><span aria-hidden="true">✓</span><span>Assessment</span></a>
     <a href="#/investments" data-view="investments"><span aria-hidden="true">▥</span><span>Investments</span></a>
@@ -33,7 +34,7 @@
       <button role="tab" aria-selected="false" aria-expanded="false" data-tray="activity" id="tab-activity" aria-controls="tray-panel">⌃ Activity</button>
       <button role="tab" aria-selected="false" aria-expanded="false" data-tray="requests" id="tab-requests" aria-controls="tray-panel">⌃ Requests</button>
       <button role="tab" aria-selected="false" aria-expanded="false" data-tray="history" id="tab-history" aria-controls="tray-panel">⌃ History</button>
-      <button id="tray-close" class="quiet" hidden>⌄ Collapse</button>
+      <button id="tray-expand" class="quiet" hidden aria-expanded="false">↗ Expand</button><button id="tray-close" class="quiet" hidden>⌄ Collapse</button>
     </div>
     <div id="tray-panel" class="tray-panel" role="tabpanel" hidden></div>
   </section>

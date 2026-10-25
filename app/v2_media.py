@@ -24,6 +24,7 @@ MAX_SAMPLES = 16000 * MAX_DURATION
 
 def process_audio(content, filename, media_type):
     allowed = {
+        ".mp3": {"audio/mpeg", "audio/mp3"},
         ".wav": {"audio/wav", "audio/x-wav", "audio/wave"},
         ".webm": {"audio/webm"},
         ".m4a": {"audio/mp4", "audio/x-m4a"},
@@ -36,6 +37,7 @@ def process_audio(content, filename, media_type):
     if not content or len(content) > MAX_BYTES:
         raise HTTPException(413, "Audio must contain 1 byte to 12 MiB")
     signatures = {
+        ".mp3": content[:3] == b"ID3" or len(content) >= 2 and content[0] == 255 and content[1] & 224 == 224,
         ".wav": content[:4] == b"RIFF" and content[8:12] == b"WAVE",
         ".webm": content[:4] == b"\x1aE\xdf\xa3",
         ".m4a": content[4:8] == b"ftyp",
@@ -93,6 +95,8 @@ def process_audio(content, filename, media_type):
                     "pcm_u8",
                 }:
                     raise ValueError("Only PCM WAV is supported")
+                if suffix == ".mp3" and codec != "mp3":
+                    raise ValueError("MP3 must contain MP3 audio")
                 if suffix == ".webm" and codec != "opus":
                     raise ValueError("WebM must contain Opus audio")
                 if suffix in {".mp4", ".m4a"} and codec != "aac":

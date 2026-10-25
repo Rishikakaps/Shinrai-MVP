@@ -25,6 +25,8 @@ def test_login_and_no_secret_in_template(tmp_path):
         assert 'data-role="analyst"' in html
         assert 'data-actor="Test Analyst"' in html
         assert "/static/v2-app.js" in html and "/static/v2-app.css" in html
+        assert re.search(r"/static/v2-app\.js\?v=[0-9a-f]{16}", html)
+        assert c.get("/static/v2-app.js").headers["cache-control"] == "no-cache"
         assert c.get("/static/app.js").status_code == 200
         assert c.get("/static/app.css").status_code == 200
         assert "no-store" in c.get("/app").headers["cache-control"]

@@ -1,5 +1,6 @@
 """FastAPI-served browser UI, controlled sign-in, and non-destructive synthetic trial helpers."""
 
+import hashlib
 import hmac
 import logging
 import re
@@ -24,6 +25,12 @@ from app.preview import render_page
 def install_ui(app, store, sessions, authenticate):
     base = Path(__file__).parent
     templates = Jinja2Templates(directory=base / "templates")
+
+    def static_asset(name):
+        version = hashlib.sha256((base / "static" / name).read_bytes()).hexdigest()[:16]
+        return f"/static/{name}?v={version}"
+
+    templates.env.globals["static_asset"] = static_asset
     app.mount("/static", StaticFiles(directory=base / "static"), name="static")
     Actor = Annotated[str, Depends(authenticate)]
 
@@ -55,6 +62,8 @@ def install_ui(app, store, sessions, authenticate):
         )
         if not request.url.path.startswith("/static/"):
             response.headers["Cache-Control"] = "no-store"
+        else:
+            response.headers["Cache-Control"] = "no-cache"
         return response
 
     def login_page(request, error=None, status_code=200):
@@ -84,7 +93,8 @@ def install_ui(app, store, sessions, authenticate):
         if sessions.read(request):
             target = request.query_params.get("next", "/app")
             return RedirectResponse(
-                target if target in {"/app", "/field-test", "/backend-test"} else "/app", status_code=303
+                target if target in {"/app", "/field-test", "/backend-test", "/evidence-inbox"} else "/app",
+                status_code=303,
             )
         return login_page(request)
 
@@ -109,7 +119,8 @@ def install_ui(app, store, sessions, authenticate):
                 request, "That access key was not recognized. Check the analyst or judge key.", 401
             )
         response = RedirectResponse(
-            next_page if next_page in {"/app", "/field-test", "/backend-test"} else "/app", status_code=303
+            next_page if next_page in {"/app", "/field-test", "/backend-test", "/evidence-inbox"} else "/app",
+            status_code=303,
         )
         response.delete_cookie("cdi_login_nonce")
         response.set_cookie(
@@ -155,6 +166,13 @@ def install_ui(app, store, sessions, authenticate):
         return templates.TemplateResponse(
             request=request, name="field_test.html", context={"viewer": session}
         )
+
+    @app.get("/evidence-inbox", response_class=HTMLResponse, include_in_schema=False)
+    def evidence_inbox(request: Request):
+        session = sessions.read(request)
+        if session is None:
+            return RedirectResponse("/login?next=/evidence-inbox", status_code=303)
+        return templates.TemplateResponse(request=request, name="intake.html", context={"viewer": session})
 
     @app.post("/api/v1/demo/prepare", response_model=Inspection)
     def new_trial(body: Reason, actor: Actor):

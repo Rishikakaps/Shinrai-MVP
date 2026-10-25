@@ -35,6 +35,39 @@ def run(client, records, photos):
     assets = {a["tag"]: a for a in report["assets"]}
     for row in records:
         tag = row["asset_id"]
+        ratings = {
+            "manufacturer": row["manufacturer"] or None,
+            "rated_power_kw": row["kilowatts"] or None,
+            "horse_power": row["horse_power"] or None,
+            "rated_voltage_v": row["voltage_label"] or None,
+            "rated_speed_rpm": row["speed_rpm"] or None,
+        }
+        provenance = {
+            "source_url": row["source_url"],
+            "label_status": row["dataset_label_status"],
+            "source_image_filename": row.get("source_image_filename"),
+            "synthetic_demo": True,
+        }
+        if tag in assets and assets[tag].get("nameplate_metadata") and not assets[tag].get("manufacturer"):
+            existing = assets[tag]
+            body = {
+                k: existing[k]
+                for k in (
+                    "tag",
+                    "serial",
+                    "model",
+                    "site",
+                    "invoice_ref",
+                    "payment_ref",
+                    "nameplate_metadata",
+                    "version",
+                )
+            }
+            assets[tag] = request(
+                "PATCH",
+                root + "/assets/" + existing["id"],
+                json={**body, **ratings, "provenance": provenance, "reason": REASON},
+            )
         if tag not in assets:
             metadata = {
                 k: row.get(k) or None
@@ -57,6 +90,8 @@ def run(client, records, photos):
                 "POST",
                 root + "/assets",
                 json={
+                    **ratings,
+                    "provenance": provenance,
                     "tag": tag,
                     "serial": row["serial_label"] or "UNVERIFIED-" + tag,
                     "model": row["model"],

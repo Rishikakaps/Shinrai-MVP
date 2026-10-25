@@ -17,6 +17,7 @@ def associate_nameplate(store, db, iid, evidence_id, raw, intended_id, actor, re
         a
         for a in store.list(db, Asset, iid)
         if a.nameplate_metadata
+        and a.serial
         and not a.serial.startswith("UNVERIFIED-")
         and len(a.serial) >= 4
         and re.search(r"(?<![\w./-])" + re.escape(a.serial) + r"(?![\w./-])", text, re.IGNORECASE)

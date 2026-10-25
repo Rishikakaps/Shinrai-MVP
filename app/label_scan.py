@@ -159,6 +159,19 @@ def install_label_scan(app, store, authenticate):
             next_action="Review against the original and accepted identity evidence before confirming. Rescan if unreadable or mismatched.",
             method="ZXing barcode decoding and local Tesseract OCR; image-quality heuristics are not a calibrated blur classifier",
         )
+        # Deliberate phone scans join the same durable intake queue. Existing
+        # accepted sources and already processed uploads are never reprocessed here.
+        if hasattr(app.state, "intake"):
+            from app.intake_models import IntakeRecord
+
+            with store.transaction() as db:
+                fresh = store.get(db, Evidence, eid, iid)
+                item = next((r for r in store.list(db, IntakeRecord, iid) if r.evidence_id == eid), None)
+                if item and item.case_id and not fresh.confirmed:
+                    if item.processing_status == "uploaded":
+                        item.processing_status = "queued"
+                        app.state.intake.save(db, item, actor, body.reason, "phone_scan_queued")
+                    result["intake_id"] = item.id
         return result
 
 

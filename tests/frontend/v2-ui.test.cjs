@@ -379,3 +379,32 @@ test("chat failure preserves the question and never fabricates an answer", async
   assert.equal(f.get(".v2-chat article"), null);
   f.dom.window.close();
 });
+
+for (const kind of ['camera', 'microphone']) {
+  test(`pending ${kind} permission can be cancelled and a late stream is stopped`, async () => {
+    const f = await fixture().ready();
+    let resolvePermission;
+    let stopped = 0;
+    Object.defineProperty(f.w.navigator, 'mediaDevices', {
+      value: { getUserMedia: () => new Promise(resolve => { resolvePermission = resolve; }) },
+    });
+    f.w.MediaRecorder = class { static isTypeSupported() { return true; } };
+    f.get('#v2-consent').checked = true;
+    f.get(kind === 'camera' ? '[data-v2=camera]' : '[data-v2=record]').click();
+    await tick();
+    assert.match(f.messages.at(-1).m, new RegExp(`Waiting for ${kind} permission`));
+    assert.equal(f.get('#inspection-picker').disabled, true);
+    const stop = f.get(kind === 'camera' ? '[data-v2=camera-stop]' : '[data-v2=stop]');
+    assert.equal(stop.disabled, false);
+    stop.click();
+    await tick();
+    assert.match(f.messages.at(-1).m, /cancelled/);
+    assert.equal(f.get('#inspection-picker').disabled, false);
+    resolvePermission({ getTracks: () => [{ stop: () => stopped++ }] });
+    await tick();
+    assert.equal(stopped, 1);
+    assert.equal(f.get('#v2-camera').hidden, true);
+    assert.equal(f.get('[data-v2=record]').disabled, false);
+    f.dom.window.close();
+  });
+}

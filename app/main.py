@@ -10,6 +10,7 @@ import tempfile
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from pathlib import Path
+from threading import BoundedSemaphore
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
@@ -62,18 +63,34 @@ class BodyLimit:
 
     def __init__(self, app):
         self.app = app
+        self.intake_slots = BoundedSemaphore(2)
 
     async def __call__(self, scope, receive, send):
+        intake = scope.get("path") == "/api/evidence/intake"
+        if intake and not self.intake_slots.acquire(blocking=False):
+            return await JSONResponse(
+                {"detail": "Intake upload is busy; retry shortly"}, 429, headers={"Retry-After": "2"}
+            )(scope, receive, send)
+        try:
+            return await self.read_request(scope, receive, send)
+        finally:
+            if intake:
+                self.intake_slots.release()
+
+    async def read_request(self, scope, receive, send):
         if scope["type"] != "http":
             return await self.app(scope, receive, send)
         chunks, size = [], 0
+        request_limit = (
+            101 * 1024 * 1024 if scope.get("path") == "/api/evidence/intake" else MAX_BYTES + 65536
+        )
         while True:
             message = await receive()
             if message["type"] == "http.disconnect":
                 return
             size += len(message.get("body", b""))
-            if size > MAX_BYTES + 65536:
-                return await JSONResponse({"detail": "Request exceeds 12 MiB evidence limit"}, 413)(
+            if size > request_limit:
+                return await JSONResponse({"detail": "Request exceeds the permitted upload size"}, 413)(
                     scope, receive, send
                 )
             chunks.append(message)
@@ -167,10 +184,14 @@ def create_app(
     @asynccontextmanager
     async def lifespan(_app):
         try:
+            if hasattr(_app.state, "intake"):
+                _app.state.intake.start()
             if hasattr(_app.state, "reminder_scheduler"):
                 _app.state.reminder_scheduler.start()
             yield
         finally:
+            if hasattr(_app.state, "intake"):
+                _app.state.intake.stop()
             if hasattr(_app.state, "reminder_scheduler"):
                 _app.state.reminder_scheduler.stop()
             store.close()
@@ -344,59 +365,17 @@ def create_app(
 
     @router.post("/inspections/{iid}/assets", response_model=Asset, status_code=201)
     def create_asset(iid: str, body: AssetCreate, actor: Actor):
+        from app.registry import save_asset
+
         with store.transaction() as db:
-            inspection(db, iid)
-            if any(engine.norm(a.tag) == engine.norm(body.tag) for a in store.list(db, Asset, iid)):
-                raise HTTPException(409, "Asset tag already exists")
-            asset = Asset(inspection_id=iid, **body.model_dump(exclude={"reason"}))
-            store.save(db, asset, actor, body.reason, "asset.created")
-            expectations = {
-                "identity": body.serial,
-                "purchase": body.invoice_ref,
-                "payment": body.payment_ref,
-                "presence": "present",
-                "installation": "installed",
-                "commissioning": "commissioned",
-            }
-            for kind in ClaimKind:
-                store.save(
-                    db,
-                    Claim(inspection_id=iid, asset_id=asset.id, kind=kind, expected=expectations[kind]),
-                    actor,
-                    body.reason,
-                    "claim.declared",
-                )
-            activate(db, iid, actor, body.reason)
-            return asset
+            return save_asset(store, db, iid, body, actor)
 
     @router.patch("/inspections/{iid}/assets/{aid}", response_model=Asset)
     def update_asset(iid: str, aid: str, body: AssetUpdate, actor: Actor):
+        from app.registry import save_asset
+
         with store.transaction() as db:
-            item = store.get(db, Asset, aid, iid)
-            version_check(item, body.version)
-            if any(
-                a.id != aid and engine.norm(a.tag) == engine.norm(body.tag)
-                for a in store.list(db, Asset, iid)
-            ):
-                raise HTTPException(409, "Asset tag already exists")
-            for field in ("tag", "serial", "model", "site", "invoice_ref", "payment_ref"):
-                setattr(item, field, getattr(body, field))
-            store.save(db, item, actor, body.reason, "asset.corrected")
-            expected = {
-                "identity": item.serial,
-                "purchase": item.invoice_ref,
-                "payment": item.payment_ref,
-                "presence": "present",
-                "installation": "installed",
-                "commissioning": "commissioned",
-            }
-            for claim in store.list(db, Claim, iid):
-                if claim.asset_id == aid:
-                    claim.expected = expected[claim.kind]
-                    claim.confirmed = False
-                    store.save(db, claim, actor, body.reason, "claim.declaration_corrected")
-            activate(db, iid, actor, body.reason)
-            return item
+            return save_asset(store, db, iid, body, actor, aid)
 
     @router.get("/inspections/{iid}/claims", response_model=list[Claim])
     def list_claims(iid: str):
@@ -411,9 +390,9 @@ def create_app(
             version_check(item, body.version)
             asset = store.get(db, Asset, item.asset_id, iid)
             locked = {
-                "identity": asset.serial,
-                "purchase": asset.invoice_ref,
-                "payment": asset.payment_ref,
+                "identity": asset.serial or "Unknown serial — review required",
+                "purchase": asset.invoice_ref or "Unknown invoice — review required",
+                "payment": asset.payment_ref or "Unknown payment — review required",
                 "presence": "present",
                 "installation": "installed",
                 "commissioning": "commissioned",
@@ -461,6 +440,8 @@ def create_app(
                 captured_at=captured_at,
             )
             store.save(db, item, actor, reason, "evidence.uploaded")
+            if hasattr(app.state, "intake"):
+                app.state.intake.register_existing(db, item, actor, reason)
             activate(db, iid, actor, reason)
             return item
 
@@ -747,9 +728,15 @@ def create_app(
     app.include_router(router)
     from app.v2_routes import install_v2
 
-    install_v2(app, store, authenticate, get_report)
+    service = install_v2(app, store, authenticate, get_report)
+    from app.intake_routes import install_intake
+
+    install_intake(app, store, service, authenticate, activate)
     from app.label_scan import install_label_scan
 
     install_label_scan(app, store, authenticate)
+    from app.registry_proposals import install_registry_proposals
+
+    install_registry_proposals(app, store, authenticate)
     install_ui(app, store, sessions, authenticate)
     return app

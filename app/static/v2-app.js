@@ -36,6 +36,7 @@
     preview: null,
     clips: [],
     camera: null,
+    mediaRequest: null,
     scan: null,
     scanFile: null,
     analysis: null,
@@ -62,7 +63,7 @@
         b.inspection_id === visit() &&
         b.local_asset_id === U.state.aid,
     );
-  const canNavigate = () => !S.recording && !S.pending && !S.camera;
+  const canNavigate = () => !S.recording && !S.pending && !S.camera && !S.mediaRequest;
   const reason = "Analyst saved change through the connected V2 interface";
   const source = (quote) => ({
     kind: "analyst_observation",
@@ -99,7 +100,7 @@
   const head = (name, sub, tools = "") =>
     `<header class="page-header"><div><h1>${name}</h1><p class="muted">${sub}</p></div><div class="tools">${tools}</div></header>`;
   const ctx = () =>
-    `<div class="v2-context"><label>Machine <select id="v2-machine" ${!canNavigate() ? "disabled" : ""}>${opts(U.state.report.assets, U.state.aid, (a) => U.machineLabel ? U.machineLabel(a) : a.tag + " · " + a.serial)}</select></label><span class="status ${S.physical ? "supported" : "unresolved"}">${S.physical ? "Identity confirmed" : "Identity not confirmed"}</span><label>Investment <select id="v2-project" ${!canNavigate() ? "disabled" : ""}><option value="">No project selected</option>${opts(S.snap?.investments.filter((p) => p.asset_links.some((l) => l.physical_asset_id === S.physical)) || [], S.project, (p) => p.title)}</select></label></div>`;
+    `<div class="v2-context"><label>Machine <select id="v2-machine" ${!canNavigate() ? "disabled" : ""}>${opts(U.state.report.assets, U.state.aid, (a) => U.machineLabel ? U.machineLabel(a) : a.tag + " · " + (a.serial || "serial unknown"))}</select></label><span class="status ${S.physical ? "supported" : "unresolved"}">${S.physical ? "Identity confirmed" : "Identity not confirmed"}</span><label>Investment <select id="v2-project" ${!canNavigate() ? "disabled" : ""}><option value="">No project selected</option>${opts(S.snap?.investments.filter((p) => p.asset_links.some((l) => l.physical_asset_id === S.physical)) || [], S.project, (p) => p.title)}</select></label></div>`;
   async function load() {
     S.cases = await U.api("/api/v1/cases");
     S.caps = await U.api("/api/v1/capabilities");
@@ -197,7 +198,7 @@
         e.confirmed &&
         !["management_statement", "financial_statement"].includes(e.kind) &&
         e.facts.serial?.trim().toLowerCase() ===
-          a.serial.trim().toLowerCase() &&
+          (a.serial || "").trim().toLowerCase() &&
         e.facts.model === a.model &&
         e.facts.site === a.site,
     );
@@ -227,6 +228,7 @@
   function overview() {
     const snap = S.snap;
     if(U.state.report.assets.some(a=>Object.keys(a.nameplate_metadata||{}).length)) return U.legacy.overview()+ctx()+history();
+    if (U.state.report.assets.some(a => a.provenance?.source_url)) return head("Motor nameplate registry", "Public source labels remain unverified. Plant C and internal tags are demonstration associations.") + ctx() + `<details class="subdisclosure"><summary>Six claims and reconciliation</summary>${U.legacy.overview()}</details>`;
     const rows = U.state.report.assets
       .map((a) => {
         const bind = snap.asset_bindings.find(
@@ -284,7 +286,7 @@
     if (!S.scan)
       return '<p class="muted">No label has been scanned in this session.</p>';
     const x = S.scan;
-    return `${x.registry_association?.tag?`<p class="banner">Registry candidate: ${esc(x.registry_association.tag)} · ${esc(x.registry_association.state)}. Context only; review original before accepting evidence.</p>`:""}<p class="banner">${esc(title(x.identity_result))}. ${esc(x.next_action)}</p><p>Quality: ${esc(x.quality_flags.map(title).join(", ") || "No readability warning")}</p><p>Decoded candidates: ${esc(x.serial_suggestions.join(" · ") || "None — rescan or flag unclear")}</p><details><summary>Read OCR text</summary><pre>${esc(x.ocr_text || "No text read")}</pre></details><p><a href="#/evidence" data-v2="review-scan">Review the saved original and correct fields →</a></p>`;
+    return `${x.registry_association?.tag?`<p class="banner">Registry candidate: ${esc(x.registry_association.tag)} · ${esc(x.registry_association.state)}. Context only; review original before accepting evidence.</p>`:""}<p class="banner">${esc(title(x.identity_result))}. ${esc(x.next_action)}</p><p>Quality: ${esc(x.quality_flags.map(title).join(", ") || "No readability warning")}</p><p>Decoded candidates: ${esc(x.serial_suggestions.join(" · ") || "None — rescan or flag unclear")}</p><details><summary>Read OCR text</summary><pre>${esc(x.ocr_text || "No text read")}</pre></details><p><a href="#/evidence" data-v2="review-scan">Review the saved original and correct fields →</a>${x.intake_id ? ` · <a href="/evidence-inbox?intake=${encodeURIComponent(x.intake_id)}">Review registry create/update proposal →</a>` : ""}</p>`;
   }
   function segmentPanel() {
     const segments = S.snap.segments.filter((s) =>
@@ -712,12 +714,13 @@
       )
     ) {
       if (!S.snap)
-        return setup() + (view === "overview" ? U.legacy.overview() : "");
-      return { overview, site, investments, followups, wearable }[view]();
+        return setup() + (view === "overview" ? U.legacy.overview() : "") + (window.CDIIntake?.panel(view) || "");
+      return { overview, site, investments, followups, wearable }[view]() + (window.CDIIntake?.panel(view) || "");
     }
     return undefined;
   }
   function decorate(view) {
+    if (view === "evidence") $("#workspace").insertAdjacentHTML("afterbegin", window.CDIIntake?.panel(view) || "");
     if (S.snap && view === "assessment")
       $("#workspace").insertAdjacentHTML("beforeend", assessment());
     if (S.snap && view === "evidence")
@@ -733,7 +736,15 @@
     ).forEach((el) => {
       el.disabled = S.recording || S.pending > 0 || !analyst;
     });
-    const active = S.recording || S.pending > 0;
+    const active = S.recording || S.pending > 0 || !!S.mediaRequest;
+    const recordButton = $("[data-v2=record]");
+    if (recordButton)
+      recordButton.disabled = active || !S.physical || !!(S.scan && S.scan.identity_result !== "matches_declared_serial");
+    const stopButton = $("[data-v2=stop]");
+    if (stopButton)
+      stopButton.disabled = !(S.recording || S.mediaRequest?.kind === "microphone");
+    const cameraButton = $("[data-v2=camera]");
+    if (cameraButton) cameraButton.disabled = active || !!S.camera;
     for (const el of $$(
       "[name=capture_type],[name=audio_language],[name=speaker],[name=operating_mode],#v2-consent,#v2-share,#v2-synthetic,#v2-incremental,#v2-speaker-confirmed",
     ))
@@ -742,12 +753,8 @@
     if (host)
       host.innerHTML = `<label class="small">Case <select id="v2-case" ${!canNavigate() ? "disabled" : ""}><option value="">Unenrolled visit</option>${opts(S.cases, S.snap?.case.id, (c) => c.company)}</select></label>`;
     const picker = $("#inspection-picker");
-    if (picker && S.snap) {
-      picker.innerHTML = opts(
-        S.snap.v1_inspections.map((v) => v.inspection),
-        visit(),
-        (v) => v.name,
-      );
+    if (picker) {
+      picker.innerHTML = opts(U.state.inspections || [], visit(), (v) => v.name);
       picker.disabled = !canNavigate();
     }
     if (S.recording || S.pending) {
@@ -904,7 +911,7 @@
       throw Error("No supported microphone codec; upload a WAV/M4A clip.");
     if (S.recording || S.pending)
       throw Error("Finish the current capture and processing first.");
-    S.stream = await navigator.mediaDevices.getUserMedia({
+    S.stream = await requestMedia({
       audio:
         context.kind === "machine_acoustic"
           ? {
@@ -914,7 +921,7 @@
             }
           : true,
       video: false,
-    });
+    }, "microphone");
     S.recording = true;
     afterRender();
     $("#v2-record-status").textContent =
@@ -1020,6 +1027,7 @@
     if (c) c.innerHTML = candidates();
   }
   function stopRecording() {
+    if (S.mediaRequest?.kind === "microphone") S.mediaRequest.cancel();
     S.recording = false;
     clearTimeout(S.timer);
     if (S.recorder?.state === "recording") S.recorder.stop();
@@ -1069,10 +1077,11 @@
       );
     if (S.recording || S.pending)
       throw Error("Stop recording before changing capture devices.");
-    S.camera = await navigator.mediaDevices.getUserMedia({
+    closeCamera();
+    S.camera = await requestMedia({
       video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 } },
       audio: false,
-    });
+    }, "camera");
     const v = $("#v2-camera");
     v.hidden = false;
     v.srcObject = S.camera;
@@ -1081,6 +1090,7 @@
     afterRender();
   }
   function closeCamera() {
+    if (S.mediaRequest?.kind === "camera") S.mediaRequest.cancel();
     S.camera?.getTracks().forEach((t) => t.stop());
     S.camera = null;
     const v = $("#v2-camera");
@@ -1090,6 +1100,32 @@
     }
     if ($("#v2-capture-photo")) $("#v2-capture-photo").hidden = true;
     afterRender();
+  }
+  async function requestMedia(constraints, kind) {
+    if (S.mediaRequest) throw Error("Finish or cancel the current permission request first.");
+    const request = { kind, cancelled: false, cancel: null };
+    let timer;
+    const interrupted = new Promise((_, reject) => {
+      request.cancel = (message = "Permission request cancelled. No recording was saved.") => {
+        request.cancelled = true;
+        reject(Error(message));
+      };
+      timer = setTimeout(() => request.cancel("Permission request timed out. Check the browser permission prompt, then retry."), 45000);
+    });
+    S.mediaRequest = request;
+    afterRender();
+    U.note(`Waiting for ${kind} permission. Use ${kind === "camera" ? "Close camera" : "Stop recording"} to cancel.`);
+    const pending = Promise.resolve().then(() => navigator.mediaDevices.getUserMedia(constraints));
+    pending.then(stream => {
+      if (request.cancelled) stream.getTracks().forEach(track => track.stop());
+    }, () => {});
+    try {
+      return await Promise.race([pending, interrupted]);
+    } finally {
+      clearTimeout(timer);
+      if (S.mediaRequest === request) S.mediaRequest = null;
+      afterRender();
+    }
   }
   function discardConfirmed() {
     return (
@@ -1291,8 +1327,8 @@
     )
       return;
     if (
-      (S.recording || S.pending) &&
-      !["stop", "question"].includes(b.dataset.v2)
+      (S.recording || S.pending || S.mediaRequest) &&
+      !["stop", "camera-stop", "question"].includes(b.dataset.v2)
     ) {
       U.note("Stop capture and wait for pending processing first.", true);
       return;
@@ -1302,6 +1338,11 @@
       !["open-machine", "select-segment", "select-task"].includes(b.dataset.v2)
     ) {
       U.note("Judge access is read-only.", true);
+      return;
+    }
+    // Stop must remain usable while an asynchronous permission dialog is open.
+    if (["stop", "camera-stop"].includes(b.dataset.v2)) {
+      actions[b.dataset.v2](b);
       return;
     }
     act(() => actions[b.dataset.v2]?.(b));
@@ -1416,8 +1457,8 @@
           throw Error("Accept matching identity evidence first.");
         const prior = S.snap.physical_assets.find(
           (a) =>
-            a.serial.trim().toLowerCase() ===
-            asset().serial.trim().toLowerCase(),
+            (a.serial || "").trim().toLowerCase() ===
+            (asset().serial || "").trim().toLowerCase(),
         );
         const body = {
           inspection_id: visit(),
@@ -1700,7 +1741,7 @@
     "click",
     (e) => {
       if (
-        (S.recording || S.pending || S.camera) &&
+        (S.recording || S.pending || S.camera || S.mediaRequest) &&
         e.target.closest('a[href^="#/"],#logout')
       ) {
         e.preventDefault();
@@ -1729,6 +1770,27 @@
       e.returnValue = "";
     }
   });
-  window.CDIV2 = { load, render, decorate, afterRender };
+  window.CDIV2 = { load, render, decorate, afterRender, canNavigate };
+  // The case/visit header wraps differently on each phone and after case load.
+  // Measure its actual height instead of guessing a fixed sticky offset.
+  const appHeader = document.querySelector(".app-header");
+  const appNav = document.querySelector(".nav-rail");
+  function updateChromeSize() {
+    for (const [element, name] of [
+      [appHeader, "--app-header-height"],
+      [appNav, "--app-nav-height"],
+    ]) {
+      const height = element?.getBoundingClientRect().height;
+      if (height > 0)
+        document.documentElement.style.setProperty(name, Math.ceil(height) + "px");
+    }
+  }
+  if (typeof ResizeObserver !== "undefined") {
+    const chromeObserver = new ResizeObserver(updateChromeSize);
+    if (appHeader) chromeObserver.observe(appHeader);
+    if (appNav) chromeObserver.observe(appNav);
+  }
+  window.addEventListener("resize", updateChromeSize);
+  updateChromeSize();
   if (U.state.report) U.refresh().catch((e) => U.note(e.message, true));
 })();
