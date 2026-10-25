@@ -93,7 +93,7 @@ function fixture({ judge = false, unconfirmed = false, noCase = false } = {}) {
     messages = [];
   let fail = false;
   const U = {
-    state: { iid: "visit-1", aid: asset.id, view: "site", report },
+    state: { iid: "visit-1", aid: asset.id, view: "interview", report },
     analyst: !judge,
     legacy: {
       overview: () => "<p>Legacy claims</p>",
@@ -171,14 +171,17 @@ test("all seven surfaces render without replacing the legacy review contract", a
   for (const v of ["evidence", "assessment"]) {
     f.page(v);
     f.w.CDIV2.decorate(v);
-    assert.ok(f.get("#v2-machine"), v);
+    if(v==="assessment")assert.ok(f.get("#v2-machine"),v);
+    else {assert.equal(f.get("[data-v2-form=identity]"),null);assert.equal(f.get("#v2-label-file"),null);}
   }
   f.dom.window.close();
 });
 test("unconfirmed identity disables recording and exposes explicit confirmation", async () => {
   const f = await fixture({ unconfirmed: true }).ready();
-  assert.equal(f.get("[data-v2=record]").disabled, true);
+  f.page("identity");
   assert.ok(f.get("[data-v2-form=identity]"));
+  f.page("interview");
+  assert.equal(f.get("[data-v2=record]"), null);
   assert.match(f.get("#workspace").textContent, /Identity not confirmed/);
   f.dom.window.close();
 });
@@ -220,6 +223,7 @@ test("microphone permission requires informed consent before any capture request
 });
 test("camera API absence explains HTTPS/file-upload fallback", async () => {
   const f = await fixture().ready();
+  f.page("site");
   f.get("[data-v2=camera]").click();
   await tick();
   assert.match(f.messages.at(-1).m, /HTTPS/);
@@ -276,6 +280,7 @@ test("same-audio comparison is blocked before sending a request", async () => {
     },
   ];
   await f.U.refresh();
+  f.page("recordings");
   const form = f.get("[data-v2-form=compare]");
   form.elements.second_id.value = "a1";
   submit(f, form);
@@ -389,7 +394,8 @@ for (const kind of ['camera', 'microphone']) {
       value: { getUserMedia: () => new Promise(resolve => { resolvePermission = resolve; }) },
     });
     f.w.MediaRecorder = class { static isTypeSupported() { return true; } };
-    f.get('#v2-consent').checked = true;
+    if(kind==='camera')f.page('site');
+    if(f.get('#v2-consent'))f.get('#v2-consent').checked = true;
     f.get(kind === 'camera' ? '[data-v2=camera]' : '[data-v2=record]').click();
     await tick();
     assert.match(f.messages.at(-1).m, new RegExp(`Waiting for ${kind} permission`));
@@ -403,8 +409,23 @@ for (const kind of ['camera', 'microphone']) {
     resolvePermission({ getTracks: () => [{ stop: () => stopped++ }] });
     await tick();
     assert.equal(stopped, 1);
-    assert.equal(f.get('#v2-camera').hidden, true);
-    assert.equal(f.get('[data-v2=record]').disabled, false);
+    if(kind==='camera'){assert.equal(f.get('#v2-camera').hidden,true);assert.equal(f.get('[data-v2=camera]').disabled,false);}
+    else assert.equal(f.get('[data-v2=record]').disabled,false);
     f.dom.window.close();
   });
 }
+
+
+test("empty identity source shows a disabled explanation and no submission form", async()=>{
+ const f=await fixture({unconfirmed:true}).ready();f.report.evidence[0].confirmed=false;f.page('identity');
+ const select=f.get('[name=identity_evidence_id]');assert.equal(select.disabled,true);assert.match(select.textContent,/No accepted identity evidence/);assert.equal(f.get('[data-v2-form=identity]'),null);assert.ok(f.get('a[href="#/evidence"]'));f.dom.window.close();
+});
+test("capture, identity and interview are separate surfaces",async()=>{
+ const f=await fixture().ready();f.page('site');assert.ok(f.get('#v2-label-file'));assert.equal(f.get('[data-v2-form=identity]'),null);assert.equal(f.get('[data-v2=record]'),null);
+ f.page('identity');assert.equal(f.get('#v2-label-file'),null);assert.equal(f.get('[data-v2=record]'),null);
+ f.page('interview');assert.ok(f.get('[data-v2=record]'));assert.equal(f.get('#v2-label-file'),null);assert.equal(f.get('[data-v2-form=identity]'),null);f.dom.window.close();
+});
+
+test("review source action changes route rather than scrolling to another section",async()=>{
+ const f=await fixture().ready();f.page('site');f.get('#workspace').insertAdjacentHTML('beforeend','<button data-v2="review-scan">Review saved source</button>');f.get('[data-v2=review-scan]').click();await tick();assert.equal(f.w.location.hash,'#/evidence');assert.equal(f.U.state.view,'evidence');assert.equal(f.U.state.evidenceStep,2);assert.ok(!f.messages.some(m=>m.e));f.dom.window.close();
+});

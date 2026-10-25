@@ -32,7 +32,11 @@ production deployment. Japan Day is the hackathon; Shinrai is the repository nam
   are explicitly flagged for review.
 - Evidence files filter to the selected machine. **Show all files** reveals the
   full inspection. The editable registry, Evidence Inbox, reviewed create/update
-  proposals, sequential workflow and expandable activity tray remain available.
+  proposals and expandable activity tray remain available. Overview and Registry
+  are separate pages. Evidence uses Upload → Review → Link screens; site work uses
+  Capture → Identity → Interview → Observations screens with explicit navigation.
+  Completed saves advance the workflow, and scrolling never switches pages.
+  An empty identity selector explains that accepted matching evidence is required.
 - A unique exact OCR serial can attach a scan to the matching row as **context**.
   Conflicts and intended-machine mismatches require review. Scanning does not
   automatically accept evidence, confirm physical identity or support a claim.
@@ -55,7 +59,7 @@ credentials are not committed. See [provenance and import instructions](fixtures
 
 ## Current verification
 
-Integrated local checks: **178 passed, 17 skipped**, **20 frontend DOM tests
+Integrated local checks: **178 passed, 17 skipped**, **23 frontend DOM tests
 passed**, Ruff passed. External-service checks skipped locally remain unverified.
 A real Edge browser check verified 40 rows/selectors, machine-scoped files,
 show-all filtering and sample upload/scan without JavaScript errors. The public
