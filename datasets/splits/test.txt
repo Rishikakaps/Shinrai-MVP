@@ -1,0 +1,14 @@
+commissioning-002
+specification-002
+invoice-002
+inspection-002
+commissioning-003
+CNC-002-misnamed-actually-003
+model-only
+partial-serial
+unknown
+multiple-machines
+contradictory-id-serial
+duplicate-commissioning-002
+nameplate-CNC-002
+nameplate-CNC-003

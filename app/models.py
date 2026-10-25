@@ -36,6 +36,7 @@ class Status(StrEnum):
 
 
 class EvidenceKind(StrEnum):
+    other = "other"
     equipment_register = "equipment_register"
     declared_asset = "declared_asset"
     invoice = "invoice"
