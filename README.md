@@ -1,5 +1,8 @@
 # Capital Deployment Integrity
 
+V2 field engineering build: [startup, API/device contract, frontend handoff and tablet checks](docs/v2-field-bench.md).
+Open `/field-test` for the functional capture/review client; `/app` remains the separate polished frontend.
+
 **V2 backend checkpoint:** see [scope, startup and verification status](docs/v2-backend.md). The `codex/v2-backend` branch adds persistent repeat-visit cases, investment projects, audited closure workflows, protected audio, Google Gemini adapters, PDF exports and local test-inbox reminders. `/backend-test` is a verification workspace; the existing four-screen frontend has not yet been redesigned for V2. The V1 documentation below describes the preserved baseline.
 
 Connected Japan Day hackathon POC: a FastAPI/Pydantic backend and a warm, guided four-screen browser app, served by one process. SQLite is the minimal local database; the uploaded backend also adds Postgres/Supabase support. Original evidence is stored persistently by SHA-256. PDF text extraction, Tesseract OCR and manual analyst review work without a vision API. Prepared synthetic Plant A exercises six atomic claims for three CNC machines.

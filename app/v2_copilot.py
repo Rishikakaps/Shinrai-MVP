@@ -32,29 +32,38 @@ from app.v2_store import check_version, fingerprint
 def get_context(service, db, segment):
     store = service.store
     interview = service.get(db, InterviewSession, segment.interview_id, segment.case_id)
-    binding = service.binding(db, segment.case_id, interview.physical_asset_id, segment.inspection_id)
+    binding = (
+        service.binding(db, segment.case_id, interview.physical_asset_id, segment.inspection_id)
+        if interview.physical_asset_id
+        else None
+    )
+    service.require_visit(db, segment.case_id, segment.inspection_id)
     claims = {
-        c.id: c for c in store.list(db, Claim, segment.inspection_id) if c.asset_id == binding.local_asset_id
+        c.id: c
+        for c in store.list(db, Claim, segment.inspection_id)
+        if not binding or c.asset_id == binding.local_asset_id
     }
     findings = engine.current_findings(store, db, segment.inspection_id)
     projects = [
         p
         for p in service.list(db, InvestmentProject, segment.case_id)
-        if any(a.physical_asset_id == interview.physical_asset_id for a in p.asset_links)
+        if (not interview.physical_asset_id and (not interview.project_id or p.id == interview.project_id))
+        or any(a.physical_asset_id == interview.physical_asset_id for a in p.asset_links)
     ]
     project_ids = {p.id for p in projects}
     targets = [t for t in service.list(db, InvestmentTarget, segment.case_id) if t.project_id in project_ids]
     tasks = [
         t
         for t in service.list(db, FollowUpContext, segment.case_id)
-        if t.physical_asset_id == interview.physical_asset_id and t.workflow_status != "closed"
+        if (not interview.physical_asset_id or t.physical_asset_id == interview.physical_asset_id)
+        and t.workflow_status != "closed"
     ]
     context = {
         "asset": {
             "physical_asset_id": interview.physical_asset_id,
-            "local_asset_id": binding.local_asset_id,
-            "binding_id": binding.id,
-            "binding_version": binding.version,
+            "local_asset_id": binding.local_asset_id if binding else None,
+            "binding_id": binding.id if binding else None,
+            "binding_version": binding.version if binding else None,
         },
         "unresolved_claims": [
             {
@@ -270,7 +279,8 @@ def install_copilot(router, app, service, authenticate):
             segment = service.get(db, TranscriptSegment, item.segment_id, case_id)
             check_version(segment, item.segment_version)
             interview = service.get(db, InterviewSession, segment.interview_id, case_id)
-            service.binding(db, case_id, item.physical_asset_id, item.inspection_id)
+            if item.physical_asset_id:
+                service.binding(db, case_id, item.physical_asset_id, item.inspection_id)
             if proposed.quote not in segment.text + "\n" + (segment.english_translation or ""):
                 raise HTTPException(422, "Candidate quote is not present in the current source")
             if body.action == "reject":
@@ -282,7 +292,11 @@ def install_copilot(router, app, service, authenticate):
                 )
             project_id = body.project_id or item.project_id
             project = service.get(db, InvestmentProject, project_id, case_id) if project_id else None
-            if project and item.physical_asset_id not in [a.physical_asset_id for a in project.asset_links]:
+            if (
+                project
+                and item.physical_asset_id
+                and item.physical_asset_id not in [a.physical_asset_id for a in project.asset_links]
+            ):
                 raise HTTPException(422, "Investment is not linked to this physical machine")
             source = source_for(interview, segment, proposed.quote)
             if proposed.kind == "investment_target":

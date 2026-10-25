@@ -1,5 +1,8 @@
 # V2 backend checkpoint
 
+Current field build and validation are documented in [v2-field-bench.md](v2-field-bench.md)
+and [v2-field-verification.md](v2-field-verification.md). Earlier validation records below are historical.
+
 This is a hackathon build for one team, synthetic records, a Windows laptop backend and phone browser capture through an authenticated HTTPS tunnel. Production multi-company access and an external submission portal are outside this release. Analysts upload and review evidence. This checkpoint was pushed before verification was complete at the user's request.
 
 ## Fixed mechanisms
@@ -56,7 +59,7 @@ Questions/extraction, Japanese text translation, and short-clip speech transcrip
 
 Provider documentation: [audio understanding](https://ai.google.dev/gemini-api/docs/generate-content/audio), [structured outputs](https://ai.google.dev/gemini-api/docs/structured-output), [pricing and free-tier availability](https://ai.google.dev/gemini-api/docs/pricing).
 
-Authenticated `/openapi.json` is generated from the current typed request/response models and includes V2. The checked-in `docs/openapi.json` is the older V1 snapshot. V2 endpoints are under `/api/v1`:
+Authenticated `/openapi.json` is generated from the current typed request/response models and includes V2. The checked-in `docs/openapi.json` has been regenerated for the current V2 field build. V2 endpoints are under `/api/v1`:
 
 | Resource | Paths |
 |---|---|

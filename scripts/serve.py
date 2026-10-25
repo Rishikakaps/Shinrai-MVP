@@ -16,6 +16,9 @@ def main():
     local_ocr = root / ".tools" / "tesseract"
     if (local_ocr / "tesseract.exe").is_file():
         os.environ["PATH"] = str(local_ocr) + os.pathsep + os.environ.get("PATH", "")
+    local_media = root / ".tools" / "ffmpeg"
+    if (local_media / "ffmpeg.exe").is_file():
+        os.environ["PATH"] = str(local_media) + os.pathsep + os.environ.get("PATH", "")
     uvicorn.run(
         "app.main:create_app",
         factory=True,

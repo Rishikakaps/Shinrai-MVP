@@ -200,7 +200,15 @@ class V2Store:
         ).fetchone()
         if not row:
             raise HTTPException(422, "Confirm this machine's identity in this inspection before capture")
-        return self.get(db, AssetBinding, row["binding_id"], case_id)
+        binding = self.get(db, AssetBinding, row["binding_id"], case_id)
+        evidence = self.evidence(db, binding.identity_evidence_id, case_id, accepted=True)
+        asset = self.store.get(db, Asset, binding.local_asset_id, inspection_id)
+        if not all(
+            engine.norm(getattr(evidence.facts, k)) == engine.norm(getattr(asset, k))
+            for k in ("serial", "model", "site")
+        ):
+            raise HTTPException(409, "Identity source changed; review and re-establish this binding")
+        return binding
 
     def confirm_identity(self, db, case_id, body, actor, physical=None):
         self.require_visit(db, case_id, body.inspection_id)
@@ -286,7 +294,15 @@ class V2Store:
 
     def create_follow_up(self, db, case_id, body, actor):
         self.require_visit(db, case_id, body.inspection_id)
-        binding = self.binding(db, case_id, body.physical_asset_id, body.inspection_id)
+        binding = (
+            self.binding(db, case_id, body.physical_asset_id, body.inspection_id)
+            if body.physical_asset_id
+            else None
+        )
+        if not binding and (body.claim_id or not body.project_id):
+            raise HTTPException(
+                422, "A case/project request needs a project; machine claims need confirmed identity"
+            )
         self.validate_source(db, body.source, case_id)
         if body.reviewer not in self.analysts:
             raise HTTPException(422, "Choose a configured analyst identity as reviewer")
@@ -323,7 +339,10 @@ class V2Store:
         if body.status not in allowed[context.workflow_status]:
             raise HTTPException(409, "Invalid follow-up transition")
         review_iid = body.review_inspection_id or context.review_inspection_id or context.inspection_id
-        self.binding(db, case_id, context.physical_asset_id, review_iid)
+        if context.physical_asset_id:
+            self.binding(db, case_id, context.physical_asset_id, review_iid)
+        else:
+            self.require_visit(db, case_id, review_iid)
         for evidence_id in body.evidence_ids:
             self.evidence(db, evidence_id, case_id)
         if body.status == "submitted_for_review":
