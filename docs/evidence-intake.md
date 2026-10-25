@@ -1,5 +1,11 @@
 # Intelligent evidence intake — implementation checkpoint
 
+**Owner-requested cutoff: 6:10 AM IST, 25 October 2026.** Continue from
+[the full continuation prompt](CONTINUE-EVIDENCE-INTAKE.md), which records the exact
+working directories, runtime services, verification evidence, interrupted work and
+next-step priorities. The [original user specification](evidence-intake-implementation-spec.md)
+is preserved verbatim alongside it. This checkpoint is not deployed to the live tablet server.
+
 Branch: `codex/intelligent-evidence-intake`, based on the field build `c5b210b`.
 This is an incremental draft, not a completed training/deployment claim.
 
@@ -31,8 +37,13 @@ Checks at this checkpoint: baseline **154 passed / 16 PostgreSQL skips**; the ne
 intake module **12 passed**, including real OCR/QR, real FFmpeg sampling, duplicate
 retry, conflict handling, original retrieval after restart and the full human
 review-to-existing-reconciliation path. Ruff and JavaScript syntax checks pass.
-The full regression after these changes, browser Inbox acceptance, final OpenAPI,
-broader security/failure checks, dataset evaluation and documentation remain in
-progress. Downloaded research data stays ignored. No trained classifier, measured
+The later full local regression passed **168 tests with 16 PostgreSQL skips**.
+The extended real-browser Inbox upload/review/claim-link flow and all **15 DOM
+tests** also passed. Source-linked synthetic evaluation measured 14/14 category
+decisions and 9/9 known serials on 14 authored fixtures; this is not an unbiased
+industrial benchmark. The public SmartDoc sample produced three selected frames
+and 107 OCR characters, with partial readability and no asset-identity score.
+Final OpenAPI, dedicated intake PostgreSQL tests and remaining hardening are
+listed in the continuation prompt. Downloaded research data stays ignored. No trained classifier, measured
 industrial accuracy, physical phone capture or complete live-provider workflow is
 claimed by this draft. The running tablet deployment has not been replaced.

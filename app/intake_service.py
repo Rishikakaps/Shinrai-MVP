@@ -33,6 +33,17 @@ class IntakeService:
         self.stopping, self.thread = Event(), None
         self.derived = store.root / "intake-derived"
         self.derived.mkdir(exist_ok=True)
+        # Index history without changing source acceptance or the V1 reconciliation basis.
+        with store.transaction() as db:
+            indexed = {r.evidence_id for r in self.records(db)}
+            for evidence in store.list(db, Evidence):
+                if evidence.id not in indexed:
+                    self.register_existing(
+                        db,
+                        evidence,
+                        "Intake index",
+                        "Index existing original without reprocessing or changing acceptance",
+                    )
 
     def start(self):
         if os.environ.get("CDI_INTAKE_WORKER", "true").lower() == "false":
@@ -171,7 +182,7 @@ class IntakeService:
                 return self.get(db, previous)
             duplicates = [r for r in self.records(db, body.case_id) if r.content_sha256 == digest]
             evidence = None
-            if not media.startswith("audio/"):
+            if not media.startswith(("audio/", "video/")):
                 evidence = Evidence(
                     inspection_id=iid,
                     kind="other",
@@ -290,6 +301,25 @@ class IntakeService:
                     None,
                 )
                 current.display_filename = (category.replace("_", " ") + " · " + item.original_filename)[:240]
+                if evidence is None and item.media_type.startswith("video/"):
+                    evidence = Evidence(
+                        inspection_id=item.inspection_id,
+                        kind="other",
+                        filename=item.original_filename,
+                        media_type=item.media_type,
+                        sha256=item.content_sha256,
+                        byte_size=item.size_bytes,
+                        source=item.source_type + " validated video intake",
+                        captured_at=item.captured_at,
+                    )
+                    self.store.save(
+                        db,
+                        evidence,
+                        "Intake worker",
+                        "Validate video stream before team-readable evidence",
+                        "evidence.uploaded",
+                    )
+                    current.evidence_id = evidence.id
                 if evidence:
                     fresh = self.store.get(db, Evidence, evidence.id, item.inspection_id)
                     check_version(fresh, evidence.version)
@@ -360,4 +390,6 @@ class IntakeService:
         )
         self.service.save(db, audio, actor, reason, "v2.audio.uploaded")
         item.audio_recording_id, item.physical_asset_id = audio.id, physical_id
+        item.assigned_asset_id, item.processing_status = binding.local_asset_id, "linked"
+        item.reviewed_by, item.reviewed_at, item.review_reason = actor, now(), reason
         return audio

@@ -16,7 +16,7 @@ from app.main import create_app
 from app.models import Asset
 from tests.conftest import ANALYST, JUDGE, TOKENS
 from tests.test_field_workflow import label
-from tests.test_v2_backend import post
+from tests.test_v2_backend import post, wav_bytes
 
 
 @pytest.fixture
@@ -281,3 +281,60 @@ def test_bad_video_fails_but_original_is_retained(intake):
     root = "/api/evidence/" + response.json()["id"]
     assert i.client.get(root + "/processing-status").json()["intake"]["processing_status"] == "failed"
     assert i.client.get(root + "/original").status_code == 200
+
+
+def test_audio_handoff_reuses_original_and_preserves_judge_restrictions(intake):
+    i = intake
+    identity = i.case.add("site_image", i.case.base, "identity")
+    physical = post(
+        i.client,
+        "/api/v1/cases/" + i.case_id + "/physical-assets",
+        {
+            "inspection_id": i.case.iid,
+            "local_asset_id": i.case.asset["id"],
+            "identity_evidence_id": identity["id"],
+            "identity_locator": "Synthetic label",
+            "reason": "Confirm synthetic fixture identity",
+        },
+    ).json()["physical_asset"]
+    data = processed(
+        i,
+        upload(
+            i,
+            content=wav_bytes(),
+            name="machine.wav",
+            mime="audio/wav",
+            audio_purpose="machine_acoustic",
+            recording_authorized=True,
+        ),
+    )
+    r = data["intake"]
+    assert r["evidence_id"] is None
+    root = "/api/evidence/" + r["id"]
+    response = i.client.post(
+        root + "/attach-acoustic?physical_asset_id=" + physical["id"],
+        json={
+            "version": r["version"],
+            "reason": "Hand authorized recording to existing signal-memory module",
+        },
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["sha256"] == r["content_sha256"]
+    assert response.json()["capture_type"] == "machine_acoustic"
+    i.client.headers["Authorization"] = "Bearer " + JUDGE
+    assert i.client.get(root + "/original").status_code == 403
+    assert i.client.get(root + "/extraction").status_code == 403
+
+
+def test_interrupted_processing_recovers_from_durable_record(intake):
+    from app.intake_models import IntakeRecord
+
+    i = intake
+    queued = upload(i).json()
+    with i.client.app.state.store.transaction() as db:
+        item = i.client.app.state.store.get(db, IntakeRecord, queued["id"])
+        item.processing_status, item.started_at, item.attempts = "processing", "2020-01-01T00:00:00+00:00", 1
+        i.service.save(db, item, "Test Analyst", "Simulate an interrupted old job", "processing")
+    i.service.run_once()
+    result = i.client.get("/api/evidence/" + queued["id"] + "/processing-status").json()["intake"]
+    assert result["processing_status"] == "needs_review" and result["attempts"] == 2

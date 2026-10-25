@@ -10,6 +10,7 @@ import tempfile
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from pathlib import Path
+from threading import BoundedSemaphore
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
@@ -62,8 +63,21 @@ class BodyLimit:
 
     def __init__(self, app):
         self.app = app
+        self.intake_slots = BoundedSemaphore(2)
 
     async def __call__(self, scope, receive, send):
+        intake = scope.get("path") == "/api/evidence/intake"
+        if intake and not self.intake_slots.acquire(blocking=False):
+            return await JSONResponse(
+                {"detail": "Intake upload is busy; retry shortly"}, 429, headers={"Retry-After": "2"}
+            )(scope, receive, send)
+        try:
+            return await self.read_request(scope, receive, send)
+        finally:
+            if intake:
+                self.intake_slots.release()
+
+    async def read_request(self, scope, receive, send):
         if scope["type"] != "http":
             return await self.app(scope, receive, send)
         chunks, size = [], 0
@@ -76,7 +90,7 @@ class BodyLimit:
                 return
             size += len(message.get("body", b""))
             if size > request_limit:
-                return await JSONResponse({"detail": "Request exceeds 12 MiB evidence limit"}, 413)(
+                return await JSONResponse({"detail": "Request exceeds the permitted upload size"}, 413)(
                     scope, receive, send
                 )
             chunks.append(message)

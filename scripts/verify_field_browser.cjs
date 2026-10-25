@@ -74,7 +74,7 @@ const { chromium, expect } = require("playwright/test");
       env: {
         ...process.env,
         DATABASE_URL: "",
-        CDI_REQUIRE_POSTGRES: "false",
+        CDI_REQUIRE_POSTGRES: "false", CDI_INTAKE_WORKER: "true",
         GEMINI_API_KEY: "",
         GOOGLE_API_KEY: "",
         CDI_TOKENS: JSON.stringify({
@@ -294,9 +294,39 @@ const { chromium, expect } = require("playwright/test");
         () => document.documentElement.scrollWidth <= window.innerWidth + 1,
       ),
     );
+    // Evidence Inbox: real durable queue, PDF extraction, review and existing claim link.
+    const intakePdf = path.join(directory, "unnamed-certificate.pdf");
+    const madePdf = spawnSync(python, ["-c", "from pathlib import Path; import sys; from tests.test_intake import pdf,CERT; Path(sys.argv[1]).write_bytes(pdf(CERT))", intakePdf], {cwd, encoding:"utf8"});
+    assert.equal(madePdf.status, 0, madePdf.stderr);
+    await page.goto(base + "/evidence-inbox");
+    await expect(page.locator("#notice")).toContainText("Connected");
+    await page.locator("#upload input[type=file]").setInputFiles(intakePdf);
+    await page.locator("#upload input[name=synthetic_demo]").check();
+    await page.locator("#upload button[type=submit]").click();
+    await expect(page.locator("#notice")).toContainText("Original saved");
+    await expect.poll(async () => {
+      const response = await page.request.get(base + "/api/evidence/inbox?inspection_id=" + snapshot.v1_inspections[0].inspection.id, {headers});
+      return (await response.json()).find(x => x.original_filename === "unnamed-certificate.pdf")?.processing_status;
+    }, {timeout:60000}).toBe("needs_review");
+    await page.locator("#refresh").click();
+    await page.locator("#association select[name=asset_id]").selectOption(asset.id);
+    await page.locator("#association input[name=checked_original]").check();
+    await page.locator("#association input[name=reason]").fill("Reviewed original and all source identifiers");
+    await page.locator("#association button[value=confirm]").click();
+    await expect(page.locator("#accept-document")).toBeVisible();
+    await page.locator("#accept-document input[name=checked_original]").check();
+    await page.locator("#accept-document input[name=reason]").fill("Explicit human acceptance of synthetic commissioning fields");
+    await page.locator("#accept-document button[type=submit]").click();
+    await expect(page.locator("#claim-link")).toBeVisible();
+    await page.locator("#claim-link input[name=locator]").fill("Page 1, serial and commissioned lines");
+    await page.locator("#claim-link input[name=reason]").fill("Human-selected claim relationship; reconciliation remains separate");
+    await page.locator("#claim-link button[type=submit]").click();
+    await expect(page.locator("#notice")).toContainText("Review saved");
+    await page.locator("#detail").screenshot({path:path.join(artifactDir,"evidence-inbox-reviewed.png")});
+    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1));
     assert.deepEqual(errors, []);
     console.log(
-      "Field browser passed: authenticated real backend, sustained synthetic camera transport, retained still, explicit binding, real MediaRecorder/FFmpeg, provider failure with retained source, manual Japanese transcript/correction, labeled fallback, PDF, mobile layout. Hardware and live Gemini NOT verified.",
+      "Field browser passed: authenticated real backend, sustained synthetic camera transport, retained still, explicit binding, real MediaRecorder/FFmpeg, provider failure with retained source, manual Japanese transcript/correction, labeled fallback, PDF, mobile layout. Evidence Inbox upload/review/claim-link passed. Hardware and live Gemini NOT verified.",
     );
   } catch (error) {
     console.error(logs.slice(-6000));

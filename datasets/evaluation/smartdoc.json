@@ -1,0 +1,22 @@
+{
+  "source": "https://zenodo.org/records/1230218",
+  "license": "CC BY 4.0",
+  "attribution": "Burie et al., ICDAR2015 Competition on Smartphone Document Capture and OCR (SmartDoc), ICDAR 2015",
+  "archive": "sampleDataset.tar.gz",
+  "archive_md5_verified": "1ee5b7c290d707bd51c59f0b1c1a36f5",
+  "archive_sha256": "90d1a64f476ffe290ebbddf4337e108d471b9c25420551223f447db972844a9a",
+  "source_video": "datasheet001.avi",
+  "derived_clip": "first 8 seconds transcoded to H.264 MP4 with FFmpeg, original retained",
+  "derived_sha256": "e5fdf8e385831ab0ddbd00dfca2506bae36df8fa334e35270ce0f9a26d0d2174",
+  "decoded_selected_frames": 3,
+  "ocr_text_characters": 107,
+  "manual_visual_inspection": "Selected source frame shows a small angled electronics datasheet. Text only partially readable.",
+  "asset_ground_truth": null,
+  "industrial_asset_accuracy_scored": false,
+  "hardware_claim": "Public smartphone dataset; no locally recorded tablet/phone clip tested",
+  "limitations": [
+    "No document-boundary detector or perspective correction implemented",
+    "Focus score is heuristic, not calibrated",
+    "No unique industrial machine identity ground truth in this clip"
+  ]
+}

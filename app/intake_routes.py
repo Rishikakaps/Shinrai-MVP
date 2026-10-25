@@ -23,6 +23,8 @@ def install_intake(app, store, service, authenticate, activate):
     Actor = Annotated[str, Depends(authenticate)]
 
     def visible(item, request):
+        if item.media_type.startswith("video/") and not item.raw_result.get("duration_seconds"):
+            return request.state.principal["role"] == "analyst"
         return not item.media_type.startswith("audio/") or request.state.principal["role"] == "analyst"
 
     def get(db, identifier, request):
