@@ -1,248 +1,204 @@
-# Shinrai — Capital Deployment Integrity
+# Shinrai
 
-## Current demo and analyst access
+### Capital deployment integrity, backed by evidence.
 
-- **Live application:** [Open Shinrai](https://rinse-creature-critter.ngrok-free.dev/app).
-- **40-motor overview and selected sample:** [Open MTR-031](https://rinse-creature-critter.ngrok-free.dev/app?inspection=7777ba4d-8556-4c24-891a-ab99a93f8048&asset=MTR-031#/overview).
-- **Evidence Inbox:** [Upload and review evidence](https://rinse-creature-critter.ngrok-free.dev/evidence-inbox).
-- **Tablet capture client:** [Open field capture](https://rinse-creature-critter.ngrok-free.dev/field-test).
-- **Repository:** [Rishikakaps/Shinrai-MVP](https://github.com/Rishikakaps/Shinrai-MVP), renamed from japan-day-capital-deployment-integrity.
+Shinrai helps analysts verify whether capital intended for machinery has reached its intended purpose: the right asset was purchased, paid for, physically present, installed and commissioned. It connects financial documents, machine labels, site observations and interviews to an auditable review of each machine.
 
-At sign-in, paste the **analyst team access key**: the value of `CDI_ANALYST_TOKEN`
-from the host's private `.env`. This enables editing, uploads and reviews.
-`CDI_JUDGE_TOKEN` provides read-only access. Obtain keys privately from the host;
-credentials are excluded from this public README, Git and browser URLs.
-On the current laptop, configuration remains in `work/v2-field/.env`, while the
-running source is `work/motor-overview`.
+Built as a working proof of concept for the **Japan Day hackathon**, Shinrai brings the inspection workflow into one browser application: capture a source, review what it says, connect it to a claim, and explain the conclusion with its evidence.
 
-The laptop serves the current build on **port 8004** through ngrok HTTPS. Keep
-the laptop, backend and tunnel running. Local access is
-[http://127.0.0.1:8004/app](http://127.0.0.1:8004/app). Android Chrome should use
-the HTTPS link for camera access. This temporary endpoint is not an always-on
-production deployment. Japan Day is the hackathon; Shinrai is the repository name.
+[Open the live demo](https://rinse-creature-critter.ngrok-free.dev/app) · [Try the motor registry](https://rinse-creature-critter.ngrok-free.dev/app?inspection=7777ba4d-8556-4c24-891a-ab99a93f8048&asset=MTR-031#/overview) · [Evidence Inbox](https://rinse-creature-critter.ngrok-free.dev/evidence-inbox)
 
-## Latest machinery and scan changes
+## The problem
 
-- The main Overview table contains **40 motors / 240 claims**, with manufacturer,
-  model, serial availability, HP/kW, RPM, voltage and protected source-file links.
-- Machine selectors and the editable registry's manufacturer/model suggestions
-  use the imported records. Corrections retain the original nameplate metadata.
-- **37 source photos** were uniquely matched against publisher metadata; three
-  records remain metadata-only. Fourteen records have no published serial and
-  are explicitly flagged for review.
-- Evidence files filter to the selected machine. **Show all files** reveals the
-  full inspection. The editable registry, Evidence Inbox, reviewed create/update
-  proposals and expandable activity tray remain available. Overview and Registry
-  are separate pages. Evidence uses Upload → Review → Link screens; site work uses
-  Capture → Identity → Interview → Observations screens with explicit navigation.
-  Completed saves advance the workflow, and scrolling never switches pages.
-  An empty identity selector explains that accepted matching evidence is required.
-- A unique exact OCR serial can attach a scan to the matching row as **context**.
-  Conflicts and intended-machine mismatches require review. Scanning does not
-  automatically accept evidence, confirm physical identity or support a claim.
+An invoice, a payment entry and a photograph answer different questions. An invoice can describe a purchase; a photograph can show a machine; neither, by itself, establishes that the intended machine has been installed and commissioned at the declared site.
 
-### Sample capture
+For lenders, finance teams and field reviewers, the challenge is connecting these fragments across documents, machines and repeat visits. Missing identifiers, conflicting records and unresolved requests make it difficult to explain what has actually been verified and what still needs work.
 
-1. Open the MTR-031 overview above: **General Electric**, model **121123**, serial
-   **134678**. Open **Open scan sample** on the laptop.
-2. On Android Chrome open Site Inspection, select **MTR-031**, and capture the
-   displayed label or upload the unchanged sample image.
-3. Review the saved original. The tested scan returns `CONTEXT_LINKED` for MTR-031
-   and appears among its files. Review any registry proposal in the Evidence Inbox
-   before accepting changes. Use good focus, framing and lighting for camera tests.
+Shinrai organizes that review around specific claims and their supporting sources. For example, an analyst can record that a machine is present and packaged while leaving installation and commissioning unresolved. When a certificate arrives later, the analyst can review it, link it and reconcile the findings while retaining the earlier conclusion.
 
-These public dataset labels are machine-generated and **unverified**. MTR tags
-and the plant association are synthetic. The photos prove no ownership, location,
-purchase, payment, installation or commissioning. Imported originals remain
-unaccepted and claims remain evidence-driven. Raw source photos, databases and
-credentials are not committed. See [provenance and import instructions](fixtures/motor-nameplates/README.md).
+## What Shinrai verifies
 
-## Current verification
+Each declared machine has six separate claims:
 
-Integrated local checks: **178 passed, 17 skipped**, **23 frontend DOM tests
-passed**, Ruff passed. External-service checks skipped locally remain unverified.
-A real Edge browser check verified 40 rows/selectors, machine-scoped files,
-show-all filtering and sample upload/scan without JavaScript errors. The public
-HTTPS API was checked. Physical tablet hardware testing remains separate.
+| Claim | Question the analyst must answer |
+|---|---|
+| **Identity** | Does accepted evidence match the declared serial, model and site? |
+| **Purchase** | Do the reviewed purchasing records support this machine and transaction? |
+| **Payment** | Do the reviewed payment and invoice records agree on the relevant references and amounts? |
+| **Presence** | Has the machine been observed at the declared site? |
+| **Installation** | Is there accepted evidence that the machine is installed? |
+| **Commissioning** | Is there accepted commissioning evidence tied to this machine? |
 
-The original Plant A walkthrough and default **8000** startup instructions below
-are retained for new clones. The current demo uses **8004** and the 40-motor registry.
+The rules engine computes findings from accepted, relevant evidence. The analyst records a separate reviewed conclusion, including any explained override. Missing information remains visible; conflicting sources remain part of the review. Completing a review can leave unresolved claims and open follow-ups.
 
-Latest connected build: [motor registry, reviewed scan proposals, source-frame adjustments and verification](docs/multimodal-continuation.md). `/app` includes editable Overview records; `/evidence-inbox` uses the shared durable processing queue.
+**A matching label is an identity candidate. Evidence acceptance, physical identity confirmation and claim support are separate decisions.**
 
-Draft evidence-intake extension: [implementation checkpoint and current limits](docs/evidence-intake.md).
+## The product workflow
 
-V2 field engineering build: [startup, API/device contract, frontend handoff and tablet checks](docs/v2-field-bench.md).
-Open `/field-test` for the functional capture/review client; `/app` remains the separate polished frontend.
+1. **Overview:** inspect the machine table, six claim statuses and source-file links.
+2. **Registry:** edit machine declarations, manufacturer, model, serial and electrical ratings. Corrections preserve provenance and invalidate affected reviews.
+3. **Evidence:** upload an original, review its extracted details, then link it as support, contradiction or context. Each step has its own screen.
+4. **Site inspection:** move through separate Capture, Identity, Interview and Observations screens. Successful matching scans open evidence review; confirmed physical identity enables machine-linked recording.
+5. **Assessment:** reconcile accepted sources, review findings and complete the review with its remaining gaps visible.
+6. **Follow-ups and repeat visits:** track requests, due dates and evidence requirements while retaining machine history and earlier findings.
 
-**V2 backend checkpoint:** see [scope, startup and verification status](docs/v2-backend.md). The `codex/v2-backend` branch adds persistent repeat-visit cases, investment projects, audited closure workflows, protected audio, Google Gemini adapters, PDF exports and local test-inbox reminders. `/backend-test` is a verification workspace; the existing four-screen frontend has not yet been redesigned for V2. The V1 documentation below describes the preserved baseline.
+The **Evidence Inbox** provides a shared processing queue for documents, photos, short videos and audio. It shows processing status, source previews, extracted candidates and reviewed proposals to create or update registry records. File filters follow the selected machine; **Show all files** reveals the complete inspection. Scrolling stays within the current page.
 
-Connected Japan Day hackathon POC: a FastAPI/Pydantic backend and a warm, guided four-screen browser app, served by one process. SQLite is the minimal local database; the uploaded backend also adds Postgres/Supabase support. Original evidence is stored persistently by SHA-256. PDF text extraction, Tesseract OCR and manual analyst review work without a vision API. Prepared synthetic Plant A exercises six atomic claims for three CNC machines.
+### Beyond the initial inspection
 
-Start with the [connected trial walkthrough](docs/frontend-handoff.md), [deployment guide](docs/backend-deployment.md), and [uploaded backend integration record](docs/imports/2026-10-24-backend-zip.md).
+- **Investment context:** record replacement, repair, upgrade, expansion and new-purchase proposals, with reported costs, targets and baselines. Forecasts and measured outcomes have separate reviews.
+- **Interview assistance:** use configured Gemini services for transcription, Japanese-to-English translation, source-linked questions and contextual Q&A. Analysts review suggestions and confirm proposed changes.
+- **Audio comparison:** compare descriptive signal features across recordings, with quality warnings and capture context. These comparisons do not diagnose equipment faults or establish commissioning.
+- **Review and closure:** retain before/after audit events, source locators, earlier findings and explicit closure requirements. JSON, text and PDF exports carry the assessment and its provenance.
 
-## Requirements and source status
+## Why it matters
 
-The detailed implementation request dated 24 October 2026 is the available product baseline. The referenced chat was read: its user decisions are available, but assistant specifications appear only as content-reference placeholders. The six-page `/mnt/data/japanday hackathon .pdf` is **not present** in this local workspace, `/mnt/data`, or the mirrored project sources. PDF-specific requirements have not been verified. See [requirements and decisions](docs/requirements.md). Synced `sources/` and `AGENTS.md` remain unchanged.
+Shinrai is designed for equipment-finance and capital-expenditure reviews involving lending teams, company finance teams, inspectors and auditors. It gives them a shared record of the machine, the evidence considered and the next action needed.
 
-Implementation runs in this local Work workspace. No model switch was performed or claimed.
+The intended business value is less manual evidence chasing, more consistent inspections and clearer handoffs between field and desk reviewers. Pilot evaluation should measure review time, repeat visits, request-resolution time and evidence traceability; no measured commercial ROI is claimed by this prototype.
+
+A possible commercial model is an organization subscription with usage-based inspection capacity and integrations into existing lending or enterprise workflows. Pricing, paying customers and production-scale performance remain to be validated. Shinrai's current output supports analyst review; it does not make lending, funding or fraud decisions.
+
+## The technology that works today
+
+| Layer | Technology | Role in the current implementation |
+|---|---|---|
+| Browser application | HTML, CSS, vanilla JavaScript, Jinja2 | Guided pages, editable registry, source review, camera/microphone controls and analyst/judge views |
+| Backend and contracts | Python 3.12+, FastAPI, Uvicorn, Pydantic | Authenticated APIs, validated records, workflow rules and generated OpenAPI contract |
+| Database | SQLite; PostgreSQL through psycopg | Transactional records, sessions, versions and audit history; the current laptop demo uses SQLite |
+| Hosted database option | Supabase PostgreSQL | Supported through the PostgreSQL adapter and private `DATABASE_URL`; separate from the active SQLite demo |
+| Original evidence | SHA-256-addressed filesystem storage | Retains source bytes and checks integrity; database and file storage must both persist |
+| Documents and images | pypdf, Poppler, Tesseract through pytesseract, Pillow | PDF text/rendering, OCR, image previews and reviewed crop/rotation/contrast adjustments |
+| Machine identifiers | ZXing-C++ and exact identifier comparisons | QR/barcode decoding and conservative serial/model matching, with conflicts retained |
+| Video | FFmpeg, ffprobe, Pillow | Validates short clips, extracts timestamped frames and shortlists frames using a sharpness heuristic |
+| Classification and association | Explicit keyword/category rules and deterministic matching | Proposes evidence categories and machine candidates; no custom trained classifier is deployed |
+| Speech and contextual AI | Optional Google Gemini API through httpx | Transcription, translation, interview analysis and case-context assistance when privately configured |
+| Audio processing | FFmpeg and local signal calculations | Validates recordings and computes descriptive features such as signal level and selected frequency-band energy |
+| Reports and reminders | ReportLab; persisted reminder outbox and Mailpit test inbox | PDF exports and controlled reminder testing; real recipient delivery is not enabled in the demo |
+| Hosting and packaging | Laptop server, ngrok HTTPS; Docker/Compose configurations | Current demo runs natively on the laptop through an HTTPS tunnel; container packaging is available |
+| Verification | pytest, Ruff, Node test runner, jsdom, Playwright/Edge; GitHub Actions | Backend checks, UI state tests, browser workflows and repository CI |
+
+Dependency versions are pinned in [requirements.lock](requirements.lock) and [package-lock.json](package-lock.json). The application uses the same authenticated backend for the polished workspace and the field capture client.
+
+### How video and photo intake actually work
+
+The current video path is:
+
+```text
+Original MP4/MOV
+  → FFmpeg/ffprobe validation
+  → Up to 6 uniformly sampled, timestamped frames
+  → Up to 3 distinct frames shortlisted by a sharpness heuristic
+  → Tesseract OCR + ZXing QR/barcode decoding
+  → Rule-based category and identifier candidates
+  → Analyst review → accepted evidence → claim reconciliation
+```
+
+Video intake is bounded to **30 seconds**, with a configurable file limit of up to **100 MiB**. Sampling can miss brief events; the sharpness score is a heuristic rather than a calibrated image-quality model. The Inbox supports selecting and adjusting a derived source frame while preserving the original.
+
+A still photograph goes directly through OCR/barcode decoding and candidate matching. A unique, exact observed serial can attach a **context-only** link to a registry row. A different intended machine, conflicting identifiers or an unclear reading requires review. Live camera preview is ephemeral; deliberate captures become saved evidence. Uploaded short videos use the sampled-frame pipeline above. Camera preview and file capture do not run a live object detector.
+
+**There is no CNN layer in the current capture or video-processing pipeline.** There is also no deployed custom-trained visual classifier, machinery tracker or automated visual diagnosis. These are distinct from the working frame-extraction, OCR and review features.
+
+### How speech and AI fit
+
+Audio originals are preserved and processed as bounded clips. With a configured Gemini key and an available model, the backend can transcribe speech, translate Japanese source text and suggest contextual questions or structured proposals. Original text, translations, source quotes and analyst decisions remain distinguishable.
+
+Provider failures are explicit, and any enabled rules fallback is labelled. The AI adapter cannot accept evidence, overwrite a machine declaration or turn a forecast into a supported outcome on its own. Speech capture is clip-based rather than continuous live speech streaming.
+
+## Try the demo
+
+| Entry point | Purpose |
+|---|---|
+| [Shinrai workspace](https://rinse-creature-critter.ngrok-free.dev/app) | Main guided application |
+| [40-motor overview / MTR-031](https://rinse-creature-critter.ngrok-free.dev/app?inspection=7777ba4d-8556-4c24-891a-ab99a93f8048&asset=MTR-031#/overview) | Seeded registry and selected scan sample |
+| [Evidence Inbox](https://rinse-creature-critter.ngrok-free.dev/evidence-inbox) | Upload, process and review media |
+| [Field capture client](https://rinse-creature-critter.ngrok-free.dev/field-test) | Engineering camera/microphone capture and review client |
+
+Sign in with the **analyst team access key**: the value of `CDI_ANALYST_TOKEN` from the host's private `.env`. Analyst access permits edits, uploads and review. `CDI_JUDGE_TOKEN` provides read-only judge access. The host shares these privately; credentials are excluded from the public README, Git and browser URLs.
+
+The demo is served by the laptop on **port 8004** through ngrok HTTPS. Keep the laptop, backend and tunnel running. Android Chrome should use the HTTPS link for camera access; the tablet's `localhost` refers to the tablet. The host can use [http://127.0.0.1:8004/app](http://127.0.0.1:8004/app). This is a temporary demonstration endpoint, not an always-on production service.
+
+### A quick scan walkthrough
+
+1. Open the seeded overview and select **MTR-031 — General Electric**, model **121123**, serial **134678**.
+2. Open **Open scan sample** on the laptop. On the tablet, open Site Inspection, select MTR-031 and capture the displayed label, or upload the unchanged sample image.
+3. A readable matching scan attaches as context and opens its Evidence review screen. Check the original, review proposed fields and record any missing information before accepting evidence or registry changes.
+4. Continue through the guided workflow. An empty identity selector explicitly explains that accepted evidence matching serial, model and site is required.
+5. For a complete financial-document-to-finding demonstration, use the separate synthetic [Plant A walkthrough](docs/frontend-handoff.md#first-trial), including the missing-certificate resolution path.
+
+The seeded motor registry contains **40 machines and 240 claims**, with **37 source photos** uniquely matched against publisher metadata. Three records remain metadata-only; fourteen have no published serial. The public dataset's labels are machine-generated and **unverified**. MTR tags and the plant association are synthetic. These images establish no ownership, site, purchase, payment, installation or commissioning; imported originals start unaccepted. See [dataset provenance and the resumable import](fixtures/motor-nameplates/README.md).
+
+## Trust, persistence and verification
+
+- **Originals remain unchanged:** extracted text, proposed fields and adjusted frames are separate from the source bytes.
+- **Review stays explicit:** source acceptance, machine association, physical identity, claim relationships and reconciled findings have separate steps.
+- **Changes stay traceable:** version checks reject stale edits; corrections, reviewed conclusions and earlier findings retain audit history. Duplicate upload handling reuses processing where applicable while retaining upload history.
+- **Access is controlled:** analyst/judge roles, browser sessions, CSRF protection, protected originals and server-side provider credentials are implemented.
+- **Failures remain visible:** unreadable sources, uncertain identifiers, processing failures and provider errors require retry, correction or clarification rather than invented facts.
+
+Recorded verification on this build includes **178 backend tests passed / 17 skipped**, **23 frontend DOM tests passed**, Ruff and JavaScript syntax checks. The skipped external-service checks were not verified in that local run. A later targeted run of the real video-frame/OCR test passed, and the guided-page changes passed 12 backend browser-UI tests.
+
+Real Edge browser checks covered the 40-machine table, machine-scoped files, sample scanning, save-to-next-screen transitions, the empty identity state and retention of unsaved edits when navigation is cancelled. The public HTTPS API was also checked. These results are functional checks, not an independent industrial OCR-accuracy benchmark, a large-video stress test or physical Android camera/microphone acceptance.
 
 ## Run locally
 
-Use Python 3.12+. From this repository:
+Use **Python 3.12+**. Native media processing also needs **Tesseract**, **Poppler**, **FFmpeg** and **ffprobe** on `PATH` or in the supported local tool directories.
+
+Create a virtual environment:
 
 ```sh
-# macOS (Linux: apt-get install tesseract-ocr poppler-utils)
-brew install tesseract poppler
-python3 -m venv .venv
+python -m venv .venv
+```
+
+Windows PowerShell:
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install -r requirements.lock
+.\.venv\Scripts\python.exe -m scripts.configure
+.\.venv\Scripts\python.exe -m scripts.serve
+```
+
+macOS/Linux:
+
+```sh
 .venv/bin/python -m pip install -r requirements.lock
-.venv/bin/python scripts/configure.py
+.venv/bin/python -m scripts.configure
 .venv/bin/python -m scripts.serve
 ```
 
-Open **http://127.0.0.1:8000/app** and enter the `CDI_ANALYST_TOKEN` value from the private `.env`. The judge key gives read-only access. The configuration script generates these keys once, retains existing configuration, and never embeds them in browser assets. Browser sign-in uses a persistent opaque session and CSRF protection. API clients can continue using `Authorization: Bearer <token>`.
+Open **http://127.0.0.1:8000/app** for a fresh local installation. `scripts.configure` generates private analyst/judge keys once and preserves an existing `.env`. Set `PORT=8004` to match the current demonstration port. A fresh clone does not include the host's runtime registry, source photos or credentials; **Prepare fresh Plant A trial** creates a separate synthetic starting case.
 
-Choose **Prepare fresh Plant A trial** to begin directly in the browser. Uploading/extracting a certificate does not establish support: confirm, link and reconcile before reviewing the result. The [step-by-step trial](docs/frontend-handoff.md#first-trial) ends with CNC-002 supported and its earlier unresolved finding visible in History.
+Optional private settings include `GEMINI_API_KEY` and an available `GEMINI_MODEL`, `DATABASE_URL` for PostgreSQL/Supabase, and `NGROK_AUTHTOKEN` for tunnelling. The running server can use `CDI_ENV_FILE` and an absolute `CDI_DATA_DIR` to retain existing configuration and data across checkouts. Restart or reload the appropriate provider configuration after changes. Back up both the database and original-file directory.
 
-`/health`, `/ready`, sign-in and static assets are public; inspection data and `/openapi.json` require a valid analyst/judge session or bearer key. All writes require analyst access.
-In another terminal, from this repository:
+Docker/Compose setup, PostgreSQL persistence and controlled deployment are documented in the [deployment guide](docs/backend-deployment.md) and [V2 setup guide](docs/v2-backend.md). Container configurations are provided; the current laptop demo uses native startup.
 
-```sh
-set -a
-. ./.env
-set +a
-.venv/bin/python -m scripts.demo --output output/plant-a-export.json
-```
-
-The script creates and confirms declarations, imports actual synthetic PDF invoices, extracts text, runs image OCR, confirms/corrects extracts, links evidence, records observations, creates follow-ups, reconciles, and reviews each finding. It completes the review while preserving unresolved claims. Re-running a completed seed reuses it; `--name` can create a separate demo.
-
-Use `CDI_ANALYST_TOKEN` or `CDI_JUDGE_TOKEN` from `.env` in an API client. To fetch the contract:
+### Developer checks
 
 ```sh
-curl -H "Authorization: Bearer $CDI_JUDGE_TOKEN" http://127.0.0.1:8000/openapi.json
+python -m pytest -q
+python -m ruff check app scripts tests
+python -m ruff format --check app scripts tests
+npm ci --ignore-scripts
+npm run test:ui
 ```
 
-A generated [OpenAPI contract](docs/openapi.json) is also checked into the working files. The browser app is at `/app`; interactive Swagger is disabled. Never put an analyst key in a public bundle or URL.
+The Python commands assume the project environment is activated. Some integration checks require PostgreSQL and the test mail inbox. See [CONTRIBUTING.md](CONTRIBUTING.md) for the repository workflow.
 
-## Expected Plant A result
+## Documentation
 
-| Asset | Condition | Purchase/payment | Installation | Commissioning |
-|---|---|---|---|---|
-| CNC-001 | Operating | Supported | Supported | Supported; certificate reviewed |
-| CNC-002 | Operating | Supported | Supported | Unresolved; certificate missing |
-| CNC-003 | Packaged | Supported | Unresolved; clarification requested | Unresolved; certificate missing |
+- [OpenAPI contract](docs/openapi.json) and [API workflow](docs/api.md)
+- [Field capture, device contracts and tablet setup](docs/v2-field-bench.md)
+- [Integrated registry, intake and source-frame implementation](docs/multimodal-continuation.md)
+- [Investment projects, repeat visits, reports and closure rules](docs/v2-backend.md)
+- [Synthetic Plant A walkthrough](docs/frontend-handoff.md)
+- [Motor dataset provenance and import](fixtures/motor-nameplates/README.md)
+- [Model implementation status](models/README.md)
 
-Identity and presence are supported for all three prepared machines. There are 18 atomic claims: 15 supported and 3 unresolved. Blurry, unreadable, duplicate and conflicting identifiers are exercised separately in failure tests; they are not hidden in the successful seed.
+Some linked implementation documents preserve earlier checkpoint notes; the capabilities and limits described above reflect the current integrated build.
 
-## API workflow
+## Future scope
 
-All paths below are under `/api/v1`. UUIDs are returned by creation operations. See [the integration guide](docs/api.md) for body examples and version handling.
-
-| Method | Path | Purpose |
-|---|---|---|
-| POST / GET | `/inspections` | Set up / list inspections |
-| GET | `/inspections/{iid}` | Current review state |
-| POST | `/inspections/{iid}/assets` | Declare machine and six atomic claims |
-| PATCH | `/inspections/{iid}/assets/{aid}` | Audited declaration correction; resets claim confirmation |
-| GET | `/inspections/{iid}/claims` | Declarations and confirmation versions |
-| PATCH | `/inspections/{iid}/claims/{cid}/confirmation` | Confirm or revoke a declaration |
-| POST / GET | `/inspections/{iid}/evidence` | Multipart import / list evidence |
-| GET | `/inspections/{iid}/evidence/{eid}` | Extracted text, OCR result, facts, quality and provenance |
-| GET | `/inspections/{iid}/evidence/{eid}/original` | Integrity-checked original download |
-| POST | `/inspections/{iid}/evidence/{eid}/extract` | Real text extraction / OCR; acceptance resets |
-| PATCH | `/inspections/{iid}/evidence/{eid}/correction` | Analyst correction, flags and acceptance |
-| POST | `/inspections/{iid}/evidence-links` | Supports / contradicts / context, with locator |
-| POST | `/inspections/{iid}/evidence-links/{lid}/retract` | Retract without deleting history |
-| GET | `/inspections/{iid}/mission` | Deterministic asset checklist and next actions |
-| POST | `/inspections/{iid}/observations` | Timestamped analyst or management statement |
-| POST | `/inspections/{iid}/reconcile` | Deterministic current findings; unchanged basis reuses findings |
-| PATCH | `/inspections/{iid}/findings/{fid}/review` | Reviewed conclusion/override, separate from computed result |
-| POST | `/inspections/{iid}/review-complete` | Requires all declarations confirmed and current findings reviewed |
-| POST / GET | `/inspections/{iid}/follow-ups` | Open / list requests |
-| PATCH | `/inspections/{iid}/follow-ups/{aid}` | Resolve or reopen with explanation |
-| GET | `/inspections/{iid}/review-events` | Immutable before/after audit history |
-| GET | `/inspections/{iid}/export` | Complete typed JSON report and historical findings |
-| GET | `/inspections/{iid}/report` | Plain-text assessment with actions and contextual observations |
-
-## Storage, extraction and rules
-
-`CDI_DATA_DIR` defaults to `data/`. With SQLite it contains `integrity.sqlite3` (plus WAL/SHM while running) and `files/<sha256>`. With `DATABASE_URL`, typed rows and sessions are in Postgres while original files remain in that same persistent directory. Both must survive deployment restarts. One host, one service worker, local persistent disk; do not place a WAL database on shared network storage. Related changes and audit events commit in one database transaction. Audit mutation triggers protect the event table in both database adapters. File writes are flushed before DB references commit; a crash may leave an unreferenced file, never an intentionally overwritten original.
-
-PDF, JPEG, PNG and UTF-8 TXT imports are supported. Limits: 12 MiB per original, 12 PDF pages, 20 megapixels per image. MIME/extension/signature checks reject malformed files; encrypted PDFs are rejected. PDF parsing and OCR run in bounded subprocesses with timeouts, CPU limits, and a Linux memory ceiling. Scanned PDF pages use Poppler then Tesseract. Forced OCR handles PDFs with a text header over a scanned body. PDF previews are rendered in bounded workers so they also work in browsers without an inline PDF viewer. Original bytes are retained even when extraction fails. OCR failure is explicit (`failed`, `incomplete`) and allows analyst correction; it is never fabricated success.
-
-The deterministic extraction adapter reads simple `field: value` lines for serial, model, site, invoice/payment references, amount/currency and condition fields. Arbitrary invoice layouts, tables, multiple machines per page, and handwriting need manual structuring/correction. Page text and method are retained. Machine-condition judgments come from the analyst, not OCR. Confidence is optional analyst metadata, not a probability of truth. Low quality flags require analyst clarification; flag changes are audited.
-
-Core rules:
-
-- A declaration's `confirmed` means the analyst checked what is being claimed; it does not mean the claim is supported.
-- Only accepted, integrity-checked, linked evidence contributes to computation. Contextual statements never establish core claims.
-- Identity needs exact normalized serial (case/outer whitespace only) plus matching model and site. Duplicate or unreadable identifiers cannot establish identity. Accepted conflicting identifiers trigger clarification.
-- Purchase compares invoice and equipment register/declared-asset identifier, reference, amount and currency. Payment requires matching payment reference and an invoice pair with matching invoice reference, amount and currency. V1 handles one full equipment payment, not installment aggregation, taxes, FX or bank-ledger verification.
-- A sighting supports presence only. It cannot establish purchase, payment, installation or commissioning. No sighting is not proof of absence. Explicit accepted negative observations can create a potential inconsistency.
-- Installation needs an explicit analyst observation or installation record. Packaged equipment with no explicit installation assessment remains unresolved and prompts clarification.
-- Commissioning requires an accepted certificate tied to the machine; operating condition is insufficient.
-- Every accepted relevant linked item is considered. Conflicts are retained, rather than selecting only favorable evidence. Findings retain a fingerprint of their evidence/declaration/link basis and rule version.
-- Evidence, declarations or link changes invalidate current findings/reviews. Reconciliation retains prior findings; all corrections and overrides retain before/after audit records. Follow-up lifecycle edits do not change evidentiary support.
-- Review completion can coexist with unresolved findings and open follow-ups. Every current finding must be reviewed first. Reports keep computed and reviewed conclusions visibly separate.
-
-## Controlled team/judge deployment
-
-```sh
-.venv/bin/python scripts/configure.py   # once, if .env does not exist
-# Add a private DATABASE_URL for this Postgres Compose setup; see deployment guide.
-docker compose up -d --build
-# Stop/recreate safely; named volume remains:
-docker compose down
-docker compose up -d
-```
-
-Compose uses a non-root service, read-only application filesystem, bounded temporary storage, one named persistent volume and restart policy. It binds only to host loopback. For the three laptops/judges, put the host behind your team's VPN or an HTTPS reverse proxy with an explicit access allowlist; preserve bearer authentication. The bundled UI uses the same origin and needs no CORS allowlist. If using a separate client, set `CDI_CORS_ORIGINS` to its exact origins, separated by commas, then restart. CORS does not provide authentication. Never enable wildcard origins or open an unencrypted public demo port. The demo is for synthetic evidence only.
-
-No external host was provided, so no remote service was deployed. Docker configuration is supplied, but the local Docker daemon was unavailable and the container build/run was not verified. Actual native Uvicorn startup and restart were verified separately.
-
-Back up consistently from the same host (destination must be new and outside the data directory):
-
-```sh
-set -a
-. ./.env
-set +a
-.venv/bin/python -m scripts.backup /absolute/path/to/new-backup-directory
-```
-
-To restore, stop the server, point `CDI_DATA_DIR` to that backup directory, and restart. Retain `.env` separately and protect it. For Docker, stop the service and restore the backup into the named volume with UID/GID 10001. Do not use `docker compose down -v` unless intentionally deleting all demo data. Back up both the database and files, not just one.
-
-## Verification
-
-```sh
-.venv/bin/pytest -q
-.venv/bin/ruff check app scripts tests
-# Real TCP startup + full seed + process restart (stops its test server afterward):
-set -a
-. ./.env
-set +a
-.venv/bin/python -m scripts.verify_live
-```
-
-See [test and live verification evidence](docs/verification.md), [actual HTTP result](output/verification.json), [sample assessment](output/plant-a-report.txt), and [complete synthetic export](output/plant-a-export.json).
-
-Limits: single-team demo tokens, no multi-tenant permission model; no vision inference, smart-glasses stream, full financial underwriting, autonomous fraud detection, malware scanner, forensic audit ledger, or verified remote hosting. A DB/file administrator can alter storage; digest checks and API audit immutability are not a substitute for externally anchored records. The current test stack emits one non-failing Starlette warning about its future HTTP client migration.
-
-## Latest live demo change
-
-The subsequent user-requested certificate acceptance test resolved CNC-002 commissioning using a clearly labeled synthetic PDF. Upload/extraction alone left it unresolved; analyst acceptance and reconciliation changed it to supported while preserving the previous finding. The live Plant A inspection now has **16 supported / 2 unresolved** claims. See [test results](output/certificate-flow/result.json) and [updated assessment](output/certificate-flow/assessment-after.txt). The earlier 15/3 export is retained as the original baseline.
-
-The [connected frontend guide](docs/frontend-handoff.md) describes the implemented four-screen browser app. It combines the earlier functional plan into Overview, Evidence, Site inspection and Assessment, with shared Requests/Activity/History trays. The actual browser trial and exports are saved in [output/ui-trial](output/ui-trial/).
-
-## Source control and future updates
-
-This project is maintained in a private GitHub repository. See [the changelog](CHANGELOG.md) for the build's actual scope and limitations, and [the contribution workflow](CONTRIBUTING.md) for the owner's instruction to commit and push future tested codebase changes. GitHub Actions checks tests, formatting and static analysis on each push. Credentials, runtime databases/storage and synced ChatGPT project references are excluded from source control.
-
-## Frontend layout concepts
-
-[Compare 20 generated layout mockups](docs/design-exploration/README.md): five density/style directions for each of the four proposed trial pages. These are concept images, not implemented frontend screens or approved scope changes. Prompts are included with the gallery.
-
-[Labelled Theme A guide](docs/design-exploration/labelled-theme-a/README.md): the four simple screens annotated with each section's role, scan-derived data, analyst edits and judge access.
-
-## Proposed next product direction
-
-[Japan wearables and a focused business/feature direction](docs/product-direction-2026-10-24.md) records checked hardware capabilities and proposed voice-linked capture, an end-of-visit evidence check and idle-equipment blocker follow-ups. These are research proposals, not implemented features or changes to the locked claim rules.
+- **CNN-based visual intake layer:** explore detection of machinery/nameplate regions, image-quality assessment and better frame selection before OCR. This layer is **not implemented**. It needs licensed, reviewed data and evaluation across manufacturers, sites, lighting and devices before accuracy or reliability claims.
+- **Stronger field validation:** complete physical Android testing and independent industrial OCR evaluation; investigate perspective correction, tracking and on-device inference.
+- **Production and integrations:** validate multi-team deployment, scalable storage and enterprise workflow integrations; pilot the business model and measure review efficiency and traceability.
