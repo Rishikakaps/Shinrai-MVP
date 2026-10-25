@@ -1,7 +1,7 @@
 # Connected multimodal continuation — 25 October 2026
 
 This checkpoint integrates `main` workflow improvements, V2 browser/capture fixes,
-merged field PR #3 (`0db393a`) and intake PR #4 (`32ecad8`). It preserves the existing
+merged field PR #3 (`0db393a`) and intake PR #4 (`32ecad8`, now also merged remotely as `dd46e9b`). It preserves the existing
 FastAPI app, SQLite/Postgres typed store, immutable originals, audited review and
 six deterministic claims. PR #4's persisted queue is the shared ingestion service;
 there is no second intake implementation or replacement fixture database.
@@ -71,7 +71,7 @@ independently establish rights to every web-collected source photograph.
 - Registry/proposal/adjustment/MP3 tests: seven passed, including real FFmpeg video
   decoding, real Tesseract OCR of its crop, preserved timestamps/hashes, new/update
   proposal persistence, stale saves, null identifiers and import idempotency.
-- Frontend state tests and syntax/lint checks are recorded in the continuation report.
+- Frontend DOM/state tests: 20 passed, including retained fields on rejected/stale saves, nullable registry values, source provenance and judge-write guards. Python lint/format and JavaScript syntax passed.
 - Actual in-app browser: Plant C records rendered; WEG capitalization edit saved;
   synthetic MP4 uploaded using the real file chooser; timestamped frames rendered;
   a selected frame was cropped and OCRed; reviewed proposal created CNC-DEMO-041
