@@ -280,7 +280,7 @@
     if (!S.scan)
       return '<p class="muted">No label has been scanned in this session.</p>';
     const x = S.scan;
-    return `<p class="banner">${esc(title(x.identity_result))}. ${esc(x.next_action)}</p><p>Quality: ${esc(x.quality_flags.map(title).join(", ") || "No readability warning")}</p><p>Decoded candidates: ${esc(x.serial_suggestions.join(" · ") || "None — rescan or flag unclear")}</p><details><summary>Read OCR text</summary><pre>${esc(x.ocr_text || "No text read")}</pre></details><p><a href="#/evidence" data-v2="review-scan">Review the saved original and correct fields →</a></p>`;
+    return `<p class="banner">${esc(title(x.identity_result))}. ${esc(x.next_action)}</p><p>Quality: ${esc(x.quality_flags.map(title).join(", ") || "No readability warning")}</p><p>Decoded candidates: ${esc(x.serial_suggestions.join(" · ") || "None — rescan or flag unclear")}</p><details><summary>Read OCR text</summary><pre>${esc(x.ocr_text || "No text read")}</pre></details><p><a href="#/evidence" data-v2="review-scan">Review the saved original and correct fields →</a>${x.intake_id ? ` · <a href="/evidence-inbox?intake=${encodeURIComponent(x.intake_id)}">Review registry create/update proposal →</a>` : ""}</p>`;
   }
   function segmentPanel() {
     const segments = S.snap.segments.filter((s) =>

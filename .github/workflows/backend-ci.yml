@@ -50,6 +50,8 @@ jobs:
           python -m ruff format --check app scripts tests
           node --check app/static/app.js
           node --check app/static/v2-app.js
+          node --check app/static/intake.js
+          node --check app/static/registry.js
           node --check app/static/field-test.js
       - name: Frontend state and edge-case tests
         run: npm run test:ui

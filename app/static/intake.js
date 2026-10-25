@@ -370,9 +370,12 @@
     )
       .toISOString()
       .slice(0, 16);
-    const savedVisit=localStorage.getItem("cdi.inspection");
+    let savedVisit=localStorage.getItem("cdi.inspection");
+    const requestedIntake=new URLSearchParams(location.search).get("intake");
+    if(requestedIntake){const requested=await api("/api/evidence/"+encodeURIComponent(requestedIntake)+"/processing-status");savedVisit=requested.intake.inspection_id;}
     if(savedVisit){for(const c of S.cases){const visits=await api("/api/v1/cases/"+c.id+"/inspections");if(visits.some(i=>i.id===savedVisit)){$("#case").value=c.id;break;}}}
     if (S.cases.length) {await loadCase();if([...$("#visit").options].some(o=>o.value===savedVisit)){$("#visit").value=savedVisit;await loadVisit();}}
+    if(requestedIntake)await detail(requestedIntake);
     note(
       S.cases.length
         ? "Connected. Select a visit and upload evidence."

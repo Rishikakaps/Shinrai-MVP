@@ -299,3 +299,32 @@ def test_serial_alias_retains_source_span():
     serial = next(f for f in fields if f["name"] == "serial_number")
     assert serial["value"] == "FM 14015624040001"
     assert serial["source_text"] == "Ser No.:FM 14015624040001"
+
+
+def test_phone_scan_queues_same_saved_original(case):
+    setup(case)
+    data = io.BytesIO()
+    Image.new("RGB", (400, 300), "white").save(data, "PNG")
+    response = case.client.post(
+        case.url + "/evidence",
+        files={"file": ("phone.png", data.getvalue(), "image/png")},
+        data={
+            "kind": "site_image",
+            "source": "Synthetic phone pipeline test",
+            "captured_at": datetime.now(UTC).isoformat(),
+            "reason": "Preserve phone original",
+        },
+    )
+    assert response.status_code == 201, response.text
+    evidence = response.json()
+    scanned = case.client.post(
+        case.url + "/evidence/" + evidence["id"] + "/scan-label",
+        json={"asset_id": case.asset["id"], "reason": "Deliberate phone scan"},
+    )
+    assert scanned.status_code == 200, scanned.text
+    intake_id = scanned.json()["intake_id"]
+    status = case.client.get("/api/evidence/" + intake_id + "/processing-status").json()
+    assert status["intake"]["evidence_id"] == evidence["id"]
+    assert status["intake"]["processing_status"] == "queued"
+    assert status["evidence"]["confirmed"] is False
+    assert case.client.get("/api/evidence/" + intake_id + "/original").content == data.getvalue()

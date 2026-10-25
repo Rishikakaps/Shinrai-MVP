@@ -23,6 +23,7 @@ there is no second intake implementation or replacement fixture database.
 - `/api/evidence/{id}/adjust-image` saves a new JPEG from a photo or selected video
   frame, with crop/rotation/contrast metadata, parent/source hashes and timestamps.
   Its original is preserved and the shared queue performs OCR and matching.
+- Deliberate phone label scans queue the same stored original for intake and link directly to its create/update review. Accepted sources are not reprocessed by this action.
 - Inbox candidate advice is recomputed against the current registry at review time.
   Association, reviewed fact acceptance, explicit claim links and reconciliation
   remain separate steps. Existing conversation, acoustic and follow-up services remain.
@@ -65,10 +66,10 @@ independently establish rights to every web-collected source photograph.
 ## Executed verification
 
 - Baseline after fetching field PR #3: 153 passed, 17 service-dependent skips.
-- Combined regression: 174 passed, 17 skipped; one existing Starlette deprecation
+- Combined regression: 175 passed, 17 skipped; one existing Starlette deprecation
   warning. Skips include PostgreSQL/Mailpit service configurations; do not present
   them as passing service integration in this continuation.
-- Registry/proposal/adjustment/MP3 tests: seven passed, including real FFmpeg video
+- Registry/proposal/adjustment/MP3/phone queue tests: eight passed, including real FFmpeg video
   decoding, real Tesseract OCR of its crop, preserved timestamps/hashes, new/update
   proposal persistence, stale saves, null identifiers and import idempotency.
 - Frontend DOM/state tests: 20 passed, including retained fields on rejected/stale saves, nullable registry values, source provenance and judge-write guards. Python lint/format and JavaScript syntax passed.
