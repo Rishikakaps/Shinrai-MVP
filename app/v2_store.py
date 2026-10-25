@@ -213,6 +213,11 @@ class V2Store:
     def confirm_identity(self, db, case_id, body, actor, physical=None):
         self.require_visit(db, case_id, body.inspection_id)
         asset = self.store.get(db, Asset, body.local_asset_id, body.inspection_id)
+        if asset.nameplate_metadata and asset.serial.startswith("UNVERIFIED-"):
+            raise HTTPException(
+                422,
+                "This source has no verified serial. Review and correct the declaration before establishing physical identity.",
+            )
         ev = self.evidence(db, body.identity_evidence_id, case_id, accepted=True)
         if ev.inspection_id != body.inspection_id:
             raise HTTPException(422, "Identity must be established using this visit's evidence")
