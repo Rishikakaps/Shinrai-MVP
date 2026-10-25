@@ -1,5 +1,7 @@
 # Capital Deployment Integrity
 
+Draft evidence-intake extension: [implementation checkpoint and current limits](docs/evidence-intake.md).
+
 V2 field engineering build: [startup, API/device contract, frontend handoff and tablet checks](docs/v2-field-bench.md).
 Open `/field-test` for the functional capture/review client; `/app` remains the separate polished frontend.
 
