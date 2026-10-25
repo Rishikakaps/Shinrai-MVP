@@ -227,6 +227,7 @@
   }
   function overview() {
     const snap = S.snap;
+    if (U.state.report.assets.some(a => a.provenance?.source_url)) return head("Motor nameplate registry", "Public source labels remain unverified. Plant C and internal tags are demonstration associations.") + ctx() + `<details class="subdisclosure"><summary>Six claims and reconciliation</summary>${U.legacy.overview()}</details>`;
     const rows = U.state.report.assets
       .map((a) => {
         const bind = snap.asset_bindings.find(
@@ -1763,7 +1764,7 @@
       e.returnValue = "";
     }
   });
-  window.CDIV2 = { load, render, decorate, afterRender };
+  window.CDIV2 = { load, render, decorate, afterRender, canNavigate };
   // The case/visit header wraps differently on each phone and after case load.
   // Measure its actual height instead of guessing a fixed sticky offset.
   const appHeader = document.querySelector(".app-header");

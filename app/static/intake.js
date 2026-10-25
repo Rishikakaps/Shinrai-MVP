@@ -1,81 +1,382 @@
-/* Intake adds reviewed proposals to the existing evidence and registry workflow. */
+/* Intake proposals remain separate from source acceptance and deterministic reconciliation. */
+"use strict";
 (() => {
-  'use strict';
-  const U = window.IntegrityUI;
-  const E = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  const S = {items: [], selected: null, busy: false};
-  const root = () => `/api/v1/inspections/${U.state.iid}`;
-  const input = (name, label, value = '', extra = '') => `<label class="v2-field">${E(label)}<input name="${name}" value="${E(value)}" maxlength="200" ${extra}></label>`;
-  const fields = ['tag','manufacturer','model','serial','site','rated_power_kw','horse_power','rated_voltage_v','rated_speed_rpm','invoice_ref','payment_ref'];
-  const labels = ['Internal tag','Manufacturer','Model','Serial (blank if unknown)','Site association','Power kW','Horsepower','Voltage','Speed RPM','Invoice reference (if known)','Payment reference (if known)'];
-  const options = (items, selected, label) => items.map(i => `<option value="${E(i.id)}" ${i.id === selected ? 'selected' : ''}>${E(label(i))}</option>`).join('');
-  const button = (action, label, id = '') => `<button type="button" data-intake="${action}" data-id="${E(id)}">${E(label)}</button>`;
-  function editor(a, prefix = '') {
-    const manufacturers = [...new Set(U.state.report.assets.map(a => a.manufacturer).filter(Boolean))];
-    const models = [...new Set(U.state.report.assets.filter(x => !a.manufacturer || x.manufacturer === a.manufacturer).map(a => a.model))];
-    return `<div class="v2-grid">${fields.map((f, i) => input(prefix + f, labels[i], a[f], ['tag','model','site'].includes(f) ? 'required' : f === 'manufacturer' ? 'list="registry-makers"' : f === 'model' ? 'list="registry-models"' : '')).join('')}</div><datalist id="registry-makers">${manufacturers.map(m => `<option value="${E(m)}"></option>`).join('')}</datalist><datalist id="registry-models">${models.map(m => `<option value="${E(m)}"></option>`).join('')}</datalist>`;
-  }
-  function registry() {
-    const r = U.state.report, a = r.assets.find(a => a.id === U.state.aid);
-    return `<section class="work-sheet" id="registry-records"><h2>Editable machine registry</h2><p>${r.assets.length} machines · ${r.claims.length} claims · ${r.findings.filter(f => f.computed_status === 'supported').length} computed supported · ${r.claims.length-r.findings.filter(f => f.computed_status === 'supported').length} requiring evidence/review · ${r.evidence.length} evidence files · ${r.follow_ups.filter(f=>f.state==='open').length} open requests</p><label class="v2-field">Search machines<input id="registry-search" placeholder="Tag, manufacturer, model or serial"></label><div class="table-region"><div class="table-scroll"><table><thead><tr><th>Record</th><th>Manufacturer / model</th><th>Serial</th><th>Ratings</th><th>Source</th></tr></thead><tbody>${r.assets.map(x => `<tr data-registry-row="${E([x.tag,x.manufacturer,x.model,x.serial].join(' ').toLowerCase())}"><td>${button('edit-record',x.tag,x.id)}</td><td>${E(x.manufacturer || 'Unknown')}<br>${E(x.model)}</td><td>${E(x.serial || 'Unknown — review required')}</td><td>${E(x.rated_power_kw || '—')} kW · ${E(x.horse_power || '—')} HP<br>${E(x.rated_voltage_v || '—')} V · ${E(x.rated_speed_rpm || '—')} RPM</td><td>${E(x.provenance?.label_status || 'Analyst declaration')}</td></tr>`).join('')}</tbody></table></div></div>${a ? `<details class="subdisclosure" open><summary>Edit ${E(a.tag)}</summary><p>Saving resets the six declaration confirmations and makes earlier findings stale. Missing identifiers stay blank.</p><form data-intake-form="registry" data-target="${E(a.id)}" data-version="${a.version}">${editor(a)}<p class="small">Provenance: ${E(JSON.stringify(a.provenance))}</p>${input('reason','Reason for saved changes','','required maxlength="4000"')}<button type="submit" ${!U.analyst?'disabled':''}>Save record</button></form></details>` : ''}</section>`;
-  }
-  function inbox() {
-    const r = U.state.report, current = S.items.find(i => i.id === S.selected);
-    return `<section class="work-sheet" id="evidence-inbox"><h2>Evidence intake and review</h2><p>Photos, PDFs, text and MP4/MOV videos (12 MiB, 30 seconds, six frames). Originals are retained. Suggestions do not verify claims.</p>${U.analyst ? `<form data-intake-form="upload"><label class="v2-field">Original file<input type="file" name="file" accept=".pdf,.jpg,.jpeg,.png,.txt,.mp4,.mov" required></label>${input('source','Source / capture context','','required')}${input('captured_at','Captured at',new Date().toISOString().slice(0,16),'type="datetime-local" required')}${input('reason','Upload reason','Analyst evidence intake','required')}<button type="submit">Save original</button></form>` : ''}<label class="v2-field">Evidence inbox<select id="intake-picker"><option value="">Select an upload or frame</option>${options(S.items,S.selected,i => `${i.timestamp_seconds!=null?'Frame '+i.timestamp_seconds+'s · ':''}${i.suggested_title || r.evidence.find(e=>e.id===i.evidence_id)?.filename || i.id} · ${i.state}`)}</select></label>${current ? detail(current) : '<p>Unassigned uploads and processed frames appear here.</p>'}<p>For conversation recordings, transcripts and dedicated machine sound, use the existing Site inspection capture modes. <a href="/field-test">Open field capture bench</a>.</p></section>`;
-  }
-  function detail(i) {
-    const ev = U.state.report.evidence.find(e => e.id === i.evidence_id);
-    if (!ev) return '';
-    const src = root() + `/evidence/${ev.id}/original`;
-    const raw = i.raw_extraction, f = raw.fields || {};
-    const candidate = i.candidates.find(c => c.method !== 'model_only');
-    const target = U.state.report.assets.find(a => a.id === (i.selected_asset_id || candidate?.asset_id));
-    const values = Object.fromEntries(fields.map(k => [k, f[k]?.length === 1 ? f[k][0] : '']));
-    values.site ||= U.state.report.inspection.site;
-    const preview = ev.media_type.startsWith('video/') ? `<video controls playsinline preload="metadata" src="${src}" class="v2-camera"></video>` : ev.media_type.startsWith('image/') ? `<img src="${src}" alt="Original evidence" style="max-width:100%;max-height:420px;object-fit:contain">` : `<a href="${src}" target="_blank" rel="noopener">View original document</a>`;
-    const closed = ['assigned','rejected'].includes(i.state);
-    return `<article class="work-sheet"><h3>${E(i.suggested_title || ev.filename)}</h3><p>${E(i.state)} · ${E(i.decision)} · ${E(i.category)}</p>${i.error?`<p class="banner error">${E(i.error)}</p>`:''}<p class="small">Original: ${E(ev.filename)} · SHA-256 ${E(ev.sha256)}${i.timestamp_seconds!=null?' · source timestamp '+E(i.timestamp_seconds)+'s':''}</p>${preview}<p><a href="${src}" target="_blank" rel="noopener">Open/download immutable original</a>${button('open-evidence','Accept fields / link claims in evidence review',ev.id)}</p>${i.parent_id?`<p>Derived from ${button('select','source '+i.parent_id,i.parent_id)} · ${E(JSON.stringify(i.transform))}</p>`:''}<div class="section-actions">${U.analyst && i.state==='uploaded'?button('process','Process saved original',i.id):''}</div><details open><summary>Original extraction and candidate sources</summary><pre class="intake-raw">${E(JSON.stringify(raw,null,2))}</pre></details><p>${i.candidates.map(c => E(c.tag+': '+c.method+'; matches '+c.matches.join(', ')+'; conflicts '+c.conflicts.join(', '))).join('<br>') || 'No registry match. Keep unassigned or propose a new record.'}</p>${U.analyst && ev.media_type.startsWith('image/')?`<details class="subdisclosure"><summary>Crop / adjust a derived image</summary><form data-intake-form="transform" data-id="${i.id}" data-version="${i.version}"><p>Pixel bounds: left, top, right, bottom. Leave all blank for the full image. The source stays unchanged.</p><div class="v2-grid">${['left','top','right','bottom'].map(x=>input(x,x,'','type="number" min="0"')).join('')}<label>Clockwise rotation<select name="rotate"><option>0</option><option>90</option><option>180</option><option>270</option></select></label><label><input type="checkbox" name="autocontrast">Improve contrast</label></div>${input('reason','Reason for adjustment','','required')}<button type="submit">Save adjusted image</button></form></details>`:''}${U.analyst&&!closed&&!ev.media_type.startsWith('video/')?`<form data-intake-form="review" data-id="${i.id}" data-version="${i.version}" class="work-sheet"><h3>Review a registry proposal</h3><label>Action<select name="action"><option value="assign">Assign as context to existing record</option><option value="create">Create new record from reviewed fields</option><option value="update">Update existing record with reviewed fields</option><option value="reject">Reject this proposal</option></select></label><label>Target record<select name="target_id"><option value="">Choose record</option>${options(U.state.report.assets,target?.id,a=>a.tag+' · '+(a.serial||'serial unknown'))}</select></label><p>Creating/updating uses the fields below. Review every value; technical labels and model matches do not establish identity.</p>${editor(target ? {...target,...Object.fromEntries(Object.entries(values).filter(([,v])=>v))} : values,'review_')}<label class="check-label"><input type="checkbox" name="checked_original">I checked these fields against the original</label><label class="check-label"><input type="checkbox" name="acknowledge_conflicts">I reviewed unresolved/conflicting identifiers; my reason explains the decision</label>${input('reason','Decision reason','','required maxlength="4000"')}<button type="submit">Save reviewed proposal</button></form>`:''}</article>`;
-  }
-  async function perform(task) {
-    if(S.busy)return; S.busy=true; U.note('Saving / processing evidence…');
-    document.body.classList.add('intake-busy');
-    try {await task();U.state.dirty=false;await U.refresh();U.note('Saved. Review and reconcile claims through the existing evidence workflow.');}
-    catch(e){U.note(e.message,true);}finally{S.busy=false;document.body.classList.remove('intake-busy');}
-  }
-  document.addEventListener('input',e=>{if(e.target.id==='registry-search')document.querySelectorAll('[data-registry-row]').forEach(row=>{row.hidden=!row.dataset.registryRow.includes(e.target.value.toLowerCase());});});
-  document.addEventListener('change',e=>{
-    if(e.target.id==='intake-picker'){if(S.busy)return;S.selected=e.target.value;U.render();}
-    if(e.target.name==='manufacturer'||e.target.name==='review_manufacturer'){
-      const list=document.querySelector('#registry-models');if(list)list.innerHTML=[...new Set(U.state.report.assets.filter(a=>a.manufacturer===e.target.value).map(a=>a.model))].map(m=>`<option value="${E(m)}"></option>`).join('');
+  const $ = (s) => document.querySelector(s),
+    esc = (v) =>
+      String(v ?? "").replace(
+        /[&<>"']/g,
+        (c) =>
+          ({
+            "&": "&amp;",
+            "<": "&lt;",
+            ">": "&gt;",
+            '"': "&quot;",
+            "'": "&#39;",
+          })[c],
+      ),
+    analyst = document.body.dataset.role === "analyst";
+  const S = {
+    cases: [],
+    snapshot: null,
+    rows: [],
+    selected: null,
+    busy: false,
+    pending: null,
+    dirty: false,
+  };
+  const option = (v, t) => `<option value="${esc(v)}">${esc(t)}</option>`,
+    csrf = $('meta[name="csrf-token"]').content;
+  const categories = [
+    "commissioning_certificate",
+    "technical_specification",
+    "purchase_invoice",
+    "purchase_order",
+    "machine_nameplate",
+    "inspection_report",
+    "maintenance_record",
+    "installation_evidence",
+    "acoustic_recording",
+    "other",
+  ];
+  const api = async (path, method = "GET", body = null, key = null) => {
+    const headers = {};
+    if (method !== "GET") {
+      headers["X-CSRF-Token"] = csrf;
+      headers["Idempotency-Key"] = key || crypto.randomUUID();
     }
-    if(e.target.name==='target_id'&&e.target.closest('[data-intake-form="review"]')){
-      const a=U.state.report.assets.find(a=>a.id===e.target.value);if(a)for(const k of fields)e.target.form.elements['review_'+k].value=a[k]||'';
+    if (body && !(body instanceof FormData)) {
+      headers["Content-Type"] = "application/json";
+      body = JSON.stringify(body);
     }
-  });
-  document.addEventListener('click',e=>{const b=e.target.closest('[data-intake]');if(!b)return;e.preventDefault();if(S.busy)return;
-    if(b.dataset.intake==='edit-record'){U.state.aid=b.dataset.id;U.render();document.querySelector('#registry-records details')?.scrollIntoView({block:'start'});}
-    if(b.dataset.intake==='select'){S.selected=b.dataset.id;U.render();}
-    if(b.dataset.intake==='process')perform(()=>U.api(root()+`/intake/${b.dataset.id}/process`,{method:'POST',body:{reason:'Analyst requested real extraction from saved original'}}));
-    if(b.dataset.intake==='open-evidence'){U.state.eid=b.dataset.id;U.state.showAllFiles=true;U.state.evidenceStep=2;U.state.view='evidence';location.hash='/evidence';U.render();}
-  });
-  document.addEventListener('submit',e=>{const form=e.target;if(!form.dataset.intakeForm)return;e.preventDefault();if(!U.analyst||S.busy)return;const v=Object.fromEntries(new FormData(form));
-    perform(async()=>{
-      if(form.dataset.intakeForm==='upload'){
-        const data=new FormData(form);data.set('captured_at',new Date(v.captured_at).toISOString());const item=await U.api(root()+'/intake',{method:'POST',body:data,key:form.dataset.key ||= crypto.randomUUID()});S.selected=item.id;
+    const r = await fetch(path, {
+      method,
+      headers,
+      body,
+      credentials: "same-origin",
+      signal: AbortSignal.timeout(130000),
+    });
+    if (!r.ok) {
+      const x = await r.json().catch(() => ({ detail: r.statusText }));
+      throw Error(
+        typeof x.detail === "string" ? x.detail : JSON.stringify(x.detail),
+      );
+    }
+    return r.json();
+  };
+  const note = (t, error = false) => {
+    $("#notice").textContent = t;
+    $("#notice").classList.toggle("error", error);
+  };
+  const visit = () =>
+      S.snapshot?.v1_inspections.find(
+        (v) => v.inspection.id === $("#visit").value,
+      ),
+    assets = () => visit()?.assets || [];
+  async function action(fn) {
+    if (S.busy) return;
+    S.busy = true;
+    try {
+      await fn();
+    } catch (e) {
+      note(e.message, true);
+    } finally {
+      S.busy = false;
+      document
+        .querySelectorAll("[data-write]")
+        .forEach((b) => (b.disabled = !analyst));
+    }
+  }
+  async function loadCase() {
+    S.snapshot = await api("/api/v1/cases/" + $("#case").value + "/export");
+    $("#visit").innerHTML = S.snapshot.v1_inspections
+      .map((v) => option(v.inspection.id, v.inspection.name))
+      .join("");
+    await loadVisit();
+  }
+  async function loadVisit() {
+    $("#hint").innerHTML =
+      option("", "No hint — resolve from source identifiers") +
+      assets()
+        .map((a) => option(a.id, a.tag + " · " + (a.serial || "Serial unknown")))
+        .join("");
+    S.selected = null;
+    $("#detail").hidden = true;
+    await refresh();
+  }
+  async function refresh() {
+    if (!$("#visit").value) return;
+    const p = new URLSearchParams({
+      inspection_id: $("#visit").value,
+      q: $("#search").value,
+    });
+    if ($("#filter").value) p.set("state", $("#filter").value);
+    S.rows = await api("/api/evidence/inbox?" + p);
+    $("#items").innerHTML =
+      S.rows
+        .map(
+          (r) =>
+            `<article class="record"><button type="button" data-open="${r.id}">${esc(r.display_filename)}</button><p>${esc(r.processing_status)} · ${esc(r.category)} · ${esc(r.source_type)} · ${esc(r.created_at)}${r.synthetic_demo ? " · SYNTHETIC DEMO" : ""}</p>${r.duplicate_of ? '<p class="muted">Duplicate bytes; separate upload history retained.</p>' : ""}${r.last_error ? `<p class="intake-conflict">${esc(r.last_error)}</p>` : ""}</article>`,
+        )
+        .join("") || "<p>No evidence matches this filter.</p>";
+    if (S.selected && !S.dirty) await detail(S.selected, false);
+  }
+  const registryFields = ["tag","manufacturer","model","serial","site","rated_power_kw","horse_power","rated_voltage_v","rated_speed_rpm","invoice_ref","payment_ref"];
+  const registryLabels = ["Internal tag","Manufacturer","Model","Serial (blank if unknown)","Site association","Power kW","Horsepower","Voltage","Speed RPM","Invoice reference (if known)","Payment reference (if known)"];
+  function registryProposal(r) {
+    if (!analyst || !r.evidence_id || r.media_type.startsWith("audio/") || r.media_type.startsWith("video/") || ["queued","processing"].includes(r.processing_status)) return "";
+    if (r.metadata.registry_proposal) return `<p>Registry proposal saved: ${esc(r.metadata.registry_proposal.action)}. <a href="/app#/overview">Open editable Overview records</a>.</p>`;
+    const names={model:"model_number",serial:"serial_number"}, raw=r.raw_result.fields||[];
+    const values=Object.fromEntries(registryFields.map(k=>{const readings=[...new Set(raw.filter(f=>f.name===(names[k]||k)).map(f=>f.value))];return [k,readings.length===1?readings[0]:""];}));
+    values.site ||= visit()?.inspection.site||"";
+    return `<details class="record"><summary>Create or update a registry record from this scan</summary><p>Review each value against the original. Saving changes the operational Overview and resets declaration confirmations. This does not accept evidence or verify claims.</p><form id="registry-proposal"><label>Action<select name="action"><option value="create">Propose a new record</option><option value="update">Update an existing record</option></select></label><label>Existing target (for update)<select id="registry-target" name="target_id">${option("","Choose a record")+assets().map(a=>option(a.id,a.tag+" · "+(a.serial||"Serial unknown"))).join("")}</select></label>${registryFields.map((k,n)=>`<label>${registryLabels[n]}<input name="registry_${k}" value="${esc(values[k])}" maxlength="200" ${["tag","model","site"].includes(k)?"required":""}></label>`).join("")}<label class="check"><input type="checkbox" name="checked_original" required>I checked the source and every proposed field.</label><label class="check"><input type="checkbox" name="acknowledge_conflicts">I reviewed the new/unresolved/conflicting identity; my reason explains the decision.</label><label>Reason<input name="reason" required maxlength="4000"></label><button data-write type="submit">Save reviewed registry proposal</button></form></details>`;
+  }
+  function adjustment(r) {
+    if (!analyst || !r.media_type.startsWith("image/") && !r.raw_result.pages?.some(p=>p.frame)) return "";
+    return `<details class="record"><summary>Crop / rotate / improve contrast</summary><form id="adjust-image"><p>Originals stay unchanged. Crop uses pixel bounds: left, top, right, bottom. Leave all blank to retain the full image.</p>${r.media_type.startsWith("video/")?`<label>Source frame<select name="frame_number">${r.raw_result.pages.filter(p=>p.frame).map(p=>option(p.page,"Timestamp "+p.timestamp+"s")).join("")}</select></label>`:""}${["left","top","right","bottom"].map(k=>`<label>${k}<input type="number" name="${k}" min="0"></label>`).join("")}<label>Clockwise rotation<select name="rotate">${[0,90,180,270].map(n=>option(n,n+"°")).join("")}</select></label><label class="check"><input type="checkbox" name="autocontrast">Improve contrast</label><label>Reason<input name="reason" required></label><button type="submit" data-write>Save adjusted image and queue OCR</button></form></details>`;
+  }
+  async function detail(id, scroll = true) {
+    const data = await api("/api/evidence/" + id + "/processing-status");
+    S.selected = id;
+    const r = data.intake,
+      ev = data.evidence,
+      raw = r.raw_result,
+      fields = raw.fields || [],
+      resolved = r.resolution || {},
+      prefix = "/api/evidence/" + r.id;
+    const source =
+      r.media_type === "application/pdf"
+        ? `<iframe title="Original PDF" class="intake-source" src="${prefix}/original"></iframe>`
+        : r.media_type.startsWith("image/")
+          ? `<img class="intake-source" alt="Original evidence" src="${prefix}/original">`
+          : r.media_type.startsWith("video/")
+            ? `<video controls class="intake-source" src="${prefix}/original"></video>`
+            : r.media_type.startsWith("audio/")
+              ? `<audio controls src="${prefix}/original"></audio>`
+              : "";
+    const frameLinks = (raw.pages || [])
+      .filter((p) => p.frame)
+      .map(
+        (p) =>
+          `<button type="button" data-frame="${p.page}" data-id="${id}">Frame at ${p.timestamp}s</button>`,
+      )
+      .join("");
+    $("#detail").innerHTML =
+      `<h2>${esc(r.display_filename)}</h2><p>${esc(r.processing_status)} · ${esc(r.classification_method)} · Apparent category, not authenticity.</p><p class="${resolved.decision === "EXACT_SERIAL_CANDIDATE" ? "muted" : "intake-conflict"}">${esc(resolved.decision || "Processing not completed")} · ${esc(resolved.reason || "")}</p><div class="intake-layout"><div>${source}<a href="${prefix}/original" target="_blank" rel="noopener">Open protected original</a><p class="field-source">Original SHA-256: ${esc(r.content_sha256)}</p>${frameLinks}<div id="frame-preview"></div></div><div><h3>Source-linked extraction</h3><p>Readings are unconfirmed. Confidence states are not probabilities.</p><div class="intake-grid"><table><thead><tr><th>Field</th><th>Observed value and source</th></tr></thead><tbody>${fields.map((f) => `<tr><td>${esc(f.name)}</td><td><mark>${esc(f.value)}</mark><p class="field-source">Page/frame ${f.page}${f.video_timestamp !== null && f.video_timestamp !== undefined ? " · " + f.video_timestamp + "s" : ""} · ${esc(f.method)} · ${esc(f.uncertainty)}</p><details><summary>Source span</summary><p>${esc(f.source_text)}</p><p>Characters ${f.start ?? "code"}–${f.end ?? "code"}; coordinates ${f.bounding_box ? "available" : "not estimated"}.</p></details></td></tr>`).join("")}</tbody></table></div><details><summary>Extracted page text</summary>${(raw.pages || []).map((p) => `<h4>Page/frame ${p.page}</h4><pre>${esc(p.text)}</pre>`).join("")}</details><h3>Asset candidates</h3>${(resolved.candidates || []).map((c) => `<p>${esc(c.tag)} · ${esc(c.serial)}<br>Matching: ${esc(c.matching_identifiers.join(", ") || "none")}; conflicting: ${esc(c.conflicting_identifiers.join(", ") || "none")}</p>`).join("") || "<p>Unassigned — source identifiers do not establish a machine.</p>"}</div></div>
+ <form id="association"><h3>1. Review asset association</h3><label>Machine<select name="asset_id">${
+   option("", "Choose explicitly") +
+   assets()
+     .map(
+       (a) =>
+         `<option value="${a.id}" ${a.id === r.assigned_asset_id ? "selected" : ""}>${esc(a.tag + " · " + (a.serial || "Serial unknown"))}</option>`,
+     )
+     .join("")
+ }</select></label><label class="check"><input name="checked_original" type="checkbox">I inspected the original.</label><label class="check"><input name="acknowledge_conflicts" type="checkbox">I reviewed ambiguous/conflicting identifiers and explain the override below.</label><label>Reason<input name="reason" required></label>${["confirm", "reject", "unassign"].map((a) => `<button type="submit" value="${a}" data-write>${a}</button>`).join("")}</form>
+ ${ev && r.processing_status === "linked" ? `<form id="accept-document"><h3>2. Review the document and extracted facts</h3><p>Asset association alone does not accept evidence or prove commissioning.</p><label>Reviewed category<select name="category">${categories.map((c) => `<option value="${c}" ${c === r.category ? "selected" : ""}>${esc(c.replaceAll("_", " "))}</option>`).join("")}</select></label><label>Working facts — edit against the original, never fill unknowns from expectations<textarea name="facts" rows="8">${esc(JSON.stringify(ev.confirmed ? ev.facts : data.proposed_facts, null, 2))}</textarea></label><label class="check"><input name="checked_original" type="checkbox" required>I checked the actual source and every fact I am accepting.</label><label>Review reason<input name="reason" required></label><button data-write type="submit">Accept reviewed facts</button></form>` : ""}
+ ${
+   ev?.confirmed && r.assigned_asset_id
+     ? `<form id="claim-link"><h3>3. Propose a claim link, then reconcile</h3><label>Claim<select name="claim_id">${visit()
+         .claims.filter((c) => c.asset_id === r.assigned_asset_id)
+         .map((c) => option(c.id, c.kind))
+         .join(
+           "",
+         )}</select></label><label>Relationship<select name="relation"><option value="supports">Supports</option><option value="contradicts">Contradicts</option><option value="context">Context only</option></select></label><label>Source page/region or timestamp<input name="locator" required></label><label>Reason<input name="reason" required></label><button type="submit" data-write>Save claim link</button></form><p><a href="/app#/assessment">Open existing reconciliation and review</a> · <a href="/app#/followups">Follow-up workflow</a></p>`
+     : ""
+ }
+ ${
+   r.media_type.startsWith("audio/") && !r.audio_recording_id
+     ? `<form id="acoustic"><h3>Hand off to the existing audio module</h3><label>Confirmed physical machine<select name="physical_asset_id">${
+         option("", "Choose a current accepted binding") +
+         S.snapshot.asset_bindings
+           .filter((b) => b.active && b.inspection_id === r.inspection_id)
+           .map((b) =>
+             option(
+               b.physical_asset_id,
+               S.snapshot.physical_assets.find(
+                 (p) => p.id === b.physical_asset_id,
+               )?.label || b.physical_asset_id,
+             ),
+           )
+           .join("")
+       }</select></label><label>Reason<input name="reason" required></label><button type="submit" data-write>Attach original to audio memory</button></form>`
+     : ""
+ }
+ <button id="retry-process" type="button" data-write>Retry/reprocess saved original</button><p class="muted">Reprocessing revokes prior source acceptance. Prior versions remain in audit history.</p>`;
+    if(r.metadata.parent_intake_id) $("#detail").insertAdjacentHTML("afterbegin", `<p class="field-source">Derived from <a href="/api/evidence/${esc(r.metadata.parent_intake_id)}/original" target="_blank" rel="noopener">parent original</a> · timestamp ${esc(r.metadata.source_timestamp_seconds ?? "photo")}s · source frame SHA-256 ${esc(r.metadata.source_frame_sha256)} · ${esc(JSON.stringify(r.metadata.adjustment))}</p>`);
+    $("#detail").insertAdjacentHTML("beforeend", adjustment(r) + registryProposal(r));
+    $("#detail").hidden = false;
+    $("#detail").dataset.version = r.version;
+    $("#detail").dataset.evVersion = ev?.version || "";
+    $("#detail").dataset.evidence = r.evidence_id || "";
+    const processing = ["queued", "processing"].includes(r.processing_status);
+    $("#association").hidden = processing;
+    $("#retry-process").hidden = processing;
+    document
+      .querySelectorAll("[data-write]")
+      .forEach((b) => (b.disabled = !analyst));
+    if (scroll)
+      $("#detail").scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+  document.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const f = event.target,
+      v = Object.fromEntries(new FormData(f));
+    action(async () => {
+      if (f.id === "upload") {
+        if (!S.pending) {
+          const file = f.elements.file.files[0];
+          const body = new FormData();
+          body.set("file", file);
+          body.set(
+            "metadata",
+            JSON.stringify({
+              case_id: $("#case").value,
+              inspection_id: $("#visit").value,
+              asset_hint: $("#hint").value || null,
+              captured_at: new Date(v.captured_at).toISOString(),
+              source_type: v.source_type,
+              synthetic_demo: !!v.synthetic_demo,
+              recording_authorized: !!v.recording_authorized,
+              audio_purpose: v.audio_purpose || null,
+              capture_conditions: v.capture_conditions,
+              reason: v.reason,
+            }),
+          );
+          S.pending = { body, key: crypto.randomUUID() };
+        }
+        const r = await api(
+          "/api/evidence/intake",
+          "POST",
+          S.pending.body,
+          S.pending.key,
+        );
+        S.pending = null;
+        note(
+          "Original saved. Processing is queued; association and acceptance require review.",
+        );
+        await refresh();
+        await detail(r.id);
+        return;
       }
-      if(form.dataset.intakeForm==='registry'){
-        const a=U.state.report.assets.find(a=>a.id===form.dataset.target);const body={...Object.fromEntries(fields.map(k=>[k,v[k]||null])),provenance:a.provenance,version:Number(form.dataset.version),reason:v.reason};await U.api(root()+`/assets/${a.id}`,{method:'PATCH',body});
+      const id = S.selected,
+        prefix = "/api/evidence/" + id,
+        version = Number($("#detail").dataset.version);
+      if (f.id === "registry-proposal") {
+        const target=assets().find(a=>a.id===v.target_id);
+        const fields={...Object.fromEntries(registryFields.map(k=>[k,v["registry_"+k]||null])),provenance:target?.provenance||{origin:"reviewed_scan",intake_id:S.selected},reason:v.reason};
+        await api(prefix+"/registry-proposal","POST",{version,action:v.action,target_id:v.target_id||null,target_version:target?.version||null,fields,checked_original:!!v.checked_original,acknowledge_conflicts:!!v.acknowledge_conflicts,reason:v.reason});
+        S.snapshot=await api("/api/v1/cases/"+$("#case").value+"/export");
       }
-      if(form.dataset.intakeForm==='transform'){
-        const bounds=['left','top','right','bottom'].map(k=>v[k]);if(bounds.some(Boolean)&&!bounds.every(x=>x!==''))throw Error('Enter all four crop bounds.');
-        const item=await U.api(root()+`/intake/${form.dataset.id}/transform`,{method:'POST',body:{version:Number(form.dataset.version),crop:bounds.some(Boolean)?bounds.map(Number):null,rotate:Number(v.rotate),autocontrast:!!v.autocontrast,reason:v.reason}});S.selected=item.id;
+      if (f.id === "adjust-image") {
+        const bounds=[v.left,v.top,v.right,v.bottom];
+        if(bounds.some(Boolean)&&!bounds.every(x=>x!==""))throw Error("Enter all four crop bounds.");
+        const child=await api(prefix+"/adjust-image","POST",{version,frame_number:v.frame_number?Number(v.frame_number):null,crop:bounds.some(Boolean)?bounds.map(Number):null,rotate:Number(v.rotate),autocontrast:!!v.autocontrast,reason:v.reason});
+        S.selected=child.id;
       }
-      if(form.dataset.intakeForm==='review'){
-        const target=U.state.report.assets.find(a=>a.id===v.target_id);const body={version:Number(form.dataset.version),action:v.action,target_id:v.target_id||null,target_version:target?.version||null,checked_original:!!v.checked_original,acknowledge_conflicts:!!v.acknowledge_conflicts,reason:v.reason};
-        if(['create','update'].includes(v.action))body.fields={...Object.fromEntries(fields.map(k=>[k,v['review_'+k]||null])),provenance:target?.provenance||{origin:'reviewed_scan_proposal',evidence_id:S.items.find(i=>i.id===form.dataset.id)?.evidence_id},reason:v.reason};
-        await U.api(root()+`/intake/${form.dataset.id}/review`,{method:'POST',body});
-      }
+      if (f.id === "association")
+        await api(prefix + "/confirm-asset", "POST", {
+          ...v,
+          version,
+          action: event.submitter.value,
+          asset_id: v.asset_id || null,
+          checked_original: !!v.checked_original,
+          acknowledge_conflicts: !!v.acknowledge_conflicts,
+        });
+      if (f.id === "accept-document")
+        await api(prefix + "/review-document", "POST", {
+          version,
+          evidence_version: Number($("#detail").dataset.evVersion),
+          category: v.category,
+          facts: JSON.parse(v.facts),
+          checked_original: !!v.checked_original,
+          reason: v.reason,
+        });
+      if (f.id === "claim-link")
+        await api(
+          "/api/v1/inspections/" + $("#visit").value + "/evidence-links",
+          "POST",
+          { ...v, evidence_id: $("#detail").dataset.evidence },
+        );
+      if (f.id === "acoustic")
+        await api(
+          prefix +
+            "/attach-acoustic?physical_asset_id=" +
+            encodeURIComponent(v.physical_asset_id),
+          "POST",
+          { version, reason: v.reason },
+        );
+      S.dirty = false;
+      await refresh();
+      note("Review saved. Existing reconciliation remains authoritative.");
     });
   });
-  window.CDIIntake={async load(){S.items=U.state.iid?await U.api(root()+'/intake'):[];if(S.selected&&!S.items.some(i=>i.id===S.selected))S.selected=null;},panel(view){return view==='overview'?registry():['evidence','site'].includes(view)?inbox():'';}};
+  document.addEventListener("click", (e) => {
+    const b = e.target.closest("button");
+    if (!b) return;
+    if (b.dataset.open) action(() => detail(b.dataset.open));
+    if (b.id === "refresh") action(refresh);
+    if (b.dataset.frame)
+      $("#frame-preview").innerHTML =
+        `<img class="intake-source" alt="Selected source frame" src="/api/evidence/${b.dataset.id}/frames/${b.dataset.frame}">`;
+    if (b.id === "retry-process")
+      action(async () => {
+        await api("/api/evidence/" + S.selected + "/retry", "POST", {
+          version: Number($("#detail").dataset.version),
+          reason: "Analyst requested processing of retained original",
+        });
+        await detail(S.selected, false);
+        note("Processing queued; original bytes remain unchanged.");
+      });
+  });
+  document.addEventListener("change",e=>{
+    if(e.target.id==="registry-target"){
+      const a=assets().find(a=>a.id===e.target.value);
+      if(a){for(const k of registryFields)e.target.form.elements["registry_"+k].value=a[k]||"";e.target.form.elements.action.value="update";}
+    }
+  });
+  document.addEventListener("input", (e) => {
+    if (e.target.closest("#detail form")) S.dirty = true;
+  });
+  $("#case").onchange = () => action(loadCase);
+  $("#visit").onchange = () => action(loadVisit);
+  $("#filter").onchange = () => action(refresh);
+  let searchTimer;
+  $("#search").oninput = () => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => action(refresh), 300);
+  };
+  setInterval(() => {
+    if (
+      !S.busy &&
+      !document.querySelector(
+        "#detail input:focus,#detail textarea:focus,#detail select:focus",
+      ) &&
+      S.rows.some((r) => ["queued", "processing"].includes(r.processing_status))
+    )
+      action(refresh);
+  }, 2000);
+  window.addEventListener("beforeunload", (e) => {
+    if (S.pending || S.dirty) {
+      e.preventDefault();
+      e.returnValue = "";
+    }
+  });
+  action(async () => {
+    S.cases = await api("/api/v1/cases");
+    $("#case").innerHTML = S.cases
+      .map((c) => option(c.id, c.company + " · " + c.site))
+      .join("");
+    $("#upload input[name=captured_at]").value = new Date(
+      Date.now() - new Date().getTimezoneOffset() * 60000,
+    )
+      .toISOString()
+      .slice(0, 16);
+    const savedVisit=localStorage.getItem("cdi.inspection");
+    if(savedVisit){for(const c of S.cases){const visits=await api("/api/v1/cases/"+c.id+"/inspections");if(visits.some(i=>i.id===savedVisit)){$("#case").value=c.id;break;}}}
+    if (S.cases.length) {await loadCase();if([...$("#visit").options].some(o=>o.value===savedVisit)){$("#visit").value=savedVisit;await loadVisit();}}
+    note(
+      S.cases.length
+        ? "Connected. Select a visit and upload evidence."
+        : "Create or select a case in the main workspace first.",
+    );
+  });
 })();

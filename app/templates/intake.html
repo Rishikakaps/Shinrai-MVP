@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="csrf-token" content="{{ viewer.csrf }}" />
+    <title>Evidence Inbox · Capital Integrity</title>
+    <link rel="stylesheet" href="{{ static_asset('field-test.css') }}" />
+    <link rel="stylesheet" href="{{ static_asset('intake.css') }}" />
+    <script src="{{ static_asset('intake.js') }}" defer></script>
+  </head>
+  <body data-role="{{ viewer.role }}">
+    <header>
+      <h1>Evidence Inbox</h1>
+      <p>Organize evidence, review its source, then assess what it supports.</p>
+      <a href="/app">Main workspace</a> ·
+      <a href="/field-test">Tablet capture</a>
+    </header>
+    <main>
+      <p id="notice" role="status">Connecting…</p>
+      <section>
+        <h2>Upload and organize</h2>
+        <div class="grid">
+          <label>Case<select id="case"></select></label
+          ><label>Inspection visit<select id="visit"></select></label>
+        </div>
+        <form id="upload">
+          <label>Optional machine hint<select id="hint"></select></label
+          ><label
+            >Evidence file<input
+              name="file"
+              type="file"
+              required
+              accept=".pdf,.png,.jpg,.jpeg,.txt,.mp4,.mov,.wav,.mp3,.webm,.m4a"
+          /></label>
+          <p class="muted">
+            Documents/images/audio: 12 MiB. Video: 100 MiB / 30 seconds. The
+            original is retained; identifiers and category remain proposals.
+          </p>
+          <div class="grid">
+            <label
+              >Captured at<input
+                name="captured_at"
+                type="datetime-local"
+                required /></label
+            ><label
+              >Source<select name="source_type">
+                <option value="browser">Browser upload</option>
+                <option value="mobile">Mobile capture</option>
+                <option value="camera">Camera still</option>
+              </select></label
+            ><label
+              >Audio purpose<select name="audio_purpose">
+                <option value="">Not audio</option>
+                <option value="machine_acoustic">
+                  Machine acoustic memory
+                </option>
+                <option value="interview_speech">Interview speech</option>
+              </select></label
+            >
+          </div>
+          <label class="check"
+            ><input name="synthetic_demo" type="checkbox" />Clearly
+            synthetic/staged demonstration material</label
+          ><label class="check"
+            ><input name="recording_authorized" type="checkbox" />I am
+            authorized to upload this video/audio recording.</label
+          ><label
+            >Source/capture conditions<input
+              name="capture_conditions"
+              maxlength="4000"
+              value="Capture conditions not recorded" /></label
+          ><label
+            >Reason<input
+              name="reason"
+              required
+              value="Organize uploaded evidence for analyst review" /></label
+          ><button type="submit" data-write>Save original and process</button>
+        </form>
+      </section>
+      <section>
+        <h2>Evidence inbox</h2>
+        <div class="grid">
+          <label
+            >Search filename or extracted text<input
+              id="search"
+              type="search" /></label
+          ><label
+            >Processing/review state<select id="filter">
+              <option value="">All evidence</option>
+              <option value="needs_review">Unassigned / needs review</option>
+              <option value="linked">Asset associated</option>
+              <option value="failed">Processing failed</option>
+              <option value="queued">Queued</option>
+              <option value="processing">Processing</option>
+            </select></label
+          >
+        </div>
+        <button id="refresh" type="button">Refresh inbox</button>
+        <div id="items"></div>
+      </section>
+      <section id="detail" hidden></section>
+    </main>
+  </body>
+</html>

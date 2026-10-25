@@ -271,3 +271,4 @@ button[data-v2],
   }
 }
 .intake-raw{white-space:pre-wrap;overflow-wrap:anywhere;max-height:280px;overflow:auto;font-size:.78rem;background:var(--sheet);padding:12px}.intake-busy [data-intake],.intake-busy [data-intake-form] button{pointer-events:none;opacity:.55}#evidence-inbox form{display:grid;gap:12px}#registry-records form{display:grid;gap:12px}
+#registry-records p{overflow-wrap:anywhere}#registry-records input{max-width:100%;min-width:0}#registry-records .v2-grid{min-width:0}

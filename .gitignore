@@ -28,3 +28,12 @@ tmp/
 .run/
 
 node_modules/
+
+# Public research downloads and runtime/training artifacts are not redistributed.
+/datasets/raw/**
+!/datasets/raw/README.md
+/models/*.joblib
+/models/*.pkl
+
+# Local continuation diagnostics and public image trials.
+/work/

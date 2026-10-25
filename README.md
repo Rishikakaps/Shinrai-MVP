@@ -1,5 +1,9 @@
 # Capital Deployment Integrity
 
+Latest connected build: [motor registry, reviewed scan proposals, source-frame adjustments and verification](docs/multimodal-continuation.md). `/app` includes editable Overview records; `/evidence-inbox` uses the shared durable processing queue.
+
+Draft evidence-intake extension: [implementation checkpoint and current limits](docs/evidence-intake.md).
+
 V2 field engineering build: [startup, API/device contract, frontend handoff and tablet checks](docs/v2-field-bench.md).
 Open `/field-test` for the functional capture/review client; `/app` remains the separate polished frontend.
 

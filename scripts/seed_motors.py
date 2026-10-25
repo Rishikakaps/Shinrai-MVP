@@ -51,11 +51,17 @@ def import_motors(client, source=Path("fixtures/motor-nameplates/assets_40.csv")
         )
     report = request("GET", f"/inspections/{iid}/export")
     tags = {a["tag"] for a in report["assets"]}
+    imported_rows = {
+        a.get("provenance", {}).get("viewer_row_index")
+        for a in report["assets"]
+        if a.get("provenance", {}).get("source_url")
+        == "https://huggingface.co/datasets/sergiudanstan/motor-nameplate"
+    }
     rows = list(csv.DictReader(source.open(newline="", encoding="utf-8-sig")))
     if len(rows) != 40 or len({r["asset_id"] for r in rows}) != 40:
         raise ValueError("Expected exactly 40 distinct source records")
     for row in rows:
-        if row["asset_id"] in tags:
+        if row["asset_id"] in tags or int(row["source_preview_row_index"]) in imported_rows:
             continue
         body = {
             "tag": row["asset_id"],

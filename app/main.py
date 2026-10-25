@@ -10,6 +10,7 @@ import tempfile
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from pathlib import Path
+from threading import BoundedSemaphore
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
@@ -62,18 +63,34 @@ class BodyLimit:
 
     def __init__(self, app):
         self.app = app
+        self.intake_slots = BoundedSemaphore(2)
 
     async def __call__(self, scope, receive, send):
+        intake = scope.get("path") == "/api/evidence/intake"
+        if intake and not self.intake_slots.acquire(blocking=False):
+            return await JSONResponse(
+                {"detail": "Intake upload is busy; retry shortly"}, 429, headers={"Retry-After": "2"}
+            )(scope, receive, send)
+        try:
+            return await self.read_request(scope, receive, send)
+        finally:
+            if intake:
+                self.intake_slots.release()
+
+    async def read_request(self, scope, receive, send):
         if scope["type"] != "http":
             return await self.app(scope, receive, send)
         chunks, size = [], 0
+        request_limit = (
+            101 * 1024 * 1024 if scope.get("path") == "/api/evidence/intake" else MAX_BYTES + 65536
+        )
         while True:
             message = await receive()
             if message["type"] == "http.disconnect":
                 return
             size += len(message.get("body", b""))
-            if size > MAX_BYTES + 65536:
-                return await JSONResponse({"detail": "Request exceeds 12 MiB evidence limit"}, 413)(
+            if size > request_limit:
+                return await JSONResponse({"detail": "Request exceeds the permitted upload size"}, 413)(
                     scope, receive, send
                 )
             chunks.append(message)
@@ -167,10 +184,14 @@ def create_app(
     @asynccontextmanager
     async def lifespan(_app):
         try:
+            if hasattr(_app.state, "intake"):
+                _app.state.intake.start()
             if hasattr(_app.state, "reminder_scheduler"):
                 _app.state.reminder_scheduler.start()
             yield
         finally:
+            if hasattr(_app.state, "intake"):
+                _app.state.intake.stop()
             if hasattr(_app.state, "reminder_scheduler"):
                 _app.state.reminder_scheduler.stop()
             store.close()
@@ -419,6 +440,8 @@ def create_app(
                 captured_at=captured_at,
             )
             store.save(db, item, actor, reason, "evidence.uploaded")
+            if hasattr(app.state, "intake"):
+                app.state.intake.register_existing(db, item, actor, reason)
             activate(db, iid, actor, reason)
             return item
 
@@ -705,12 +728,15 @@ def create_app(
     app.include_router(router)
     from app.v2_routes import install_v2
 
-    install_v2(app, store, authenticate, get_report)
+    service = install_v2(app, store, authenticate, get_report)
+    from app.intake_routes import install_intake
+
+    install_intake(app, store, service, authenticate, activate)
     from app.label_scan import install_label_scan
 
     install_label_scan(app, store, authenticate)
-    from app.intake import install_intake
+    from app.registry_proposals import install_registry_proposals
 
-    install_intake(app, store, authenticate)
+    install_registry_proposals(app, store, authenticate)
     install_ui(app, store, sessions, authenticate)
     return app
