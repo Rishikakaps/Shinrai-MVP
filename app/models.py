@@ -87,6 +87,7 @@ class Inspection(Entity):
 
 
 class AssetCreate(Model):
+    nameplate_metadata: dict[str, str | bool | None] = Field(default_factory=dict, max_length=24)
     tag: Short
     serial: Short | None = None
     model: Short
@@ -107,6 +108,7 @@ class AssetUpdate(AssetCreate):
 
 
 class Asset(Entity):
+    nameplate_metadata: dict[str, str | bool | None] = Field(default_factory=dict, max_length=24)
     tag: str
     serial: str | None = None
     model: str

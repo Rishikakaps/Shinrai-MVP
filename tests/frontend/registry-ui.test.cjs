@@ -5,7 +5,7 @@ const fs=require('node:fs');
 function fixture({judge=false,fail=false}={}){
  const dom=new JSDOM('<div id="workspace"></div>',{url:'http://localhost/app',runScripts:'outside-only'}),w=dom.window,calls=[];
  const a={id:'a1',version:3,tag:'MTR-001',manufacturer:'Maker',model:'M1',serial:null,site:'Demo site',rated_power_kw:'15 kW',rated_voltage_v:'400 V',rated_speed_rpm:'1500 RPM',provenance:{label_status:'publisher_auto_generated_unverified'}};
- w.IntegrityUI={analyst:!judge,state:{iid:'i',aid:a.id,report:{assets:[a],claims:[],findings:[],follow_ups:[],evidence:[]}},api:async(...args)=>{calls.push(args);if(fail)throw Error('Stale version');return a;},note:()=>{},refresh:async()=>{},render:()=>{w.document.querySelector('#workspace').innerHTML=w.CDIIntake.panel('overview');}};
+ w.IntegrityUI={analyst:!judge,state:{iid:'i',aid:a.id,report:{assets:[a],claims:[],findings:[],follow_ups:[],evidence:[]}},api:async(...args)=>{calls.push(args);if(fail)throw Error('Stale version');return a;},note:()=>{},refresh:async()=>{},render:()=>{w.document.querySelector('#workspace').innerHTML=w.CDIIntake.panel('registry');}};
  w.eval(fs.readFileSync('app/static/registry.js','utf8'));w.IntegrityUI.render();return {w,calls};
 }
 test('registry preserves nulls and prevents doubled rating units',()=>{

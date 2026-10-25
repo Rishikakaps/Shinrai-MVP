@@ -1,7 +1,7 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "Capital Deployment Integrity V2",
+    "title": "Shinrai V2",
     "version": "0.3.0"
   },
   "paths": {
@@ -6230,6 +6230,24 @@
             "type": "string",
             "title": "Created At"
           },
+          "nameplate_metadata": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "type": "object",
+            "maxProperties": 24,
+            "title": "Nameplate Metadata"
+          },
           "tag": {
             "type": "string",
             "title": "Tag"
@@ -6414,6 +6432,24 @@
       },
       "AssetCreate": {
         "properties": {
+          "nameplate_metadata": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "type": "object",
+            "maxProperties": 24,
+            "title": "Nameplate Metadata"
+          },
           "tag": {
             "type": "string",
             "maxLength": 200,
@@ -6585,6 +6621,24 @@
       },
       "AssetUpdate": {
         "properties": {
+          "nameplate_metadata": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "type": "object",
+            "maxProperties": 24,
+            "title": "Nameplate Metadata"
+          },
           "tag": {
             "type": "string",
             "maxLength": 200,

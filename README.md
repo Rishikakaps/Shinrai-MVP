@@ -1,4 +1,72 @@
-# Capital Deployment Integrity
+# Shinrai — Capital Deployment Integrity
+
+## Current demo and analyst access
+
+- **Live application:** [Open Shinrai](https://rinse-creature-critter.ngrok-free.dev/app).
+- **40-motor overview and selected sample:** [Open MTR-031](https://rinse-creature-critter.ngrok-free.dev/app?inspection=7777ba4d-8556-4c24-891a-ab99a93f8048&asset=MTR-031#/overview).
+- **Evidence Inbox:** [Upload and review evidence](https://rinse-creature-critter.ngrok-free.dev/evidence-inbox).
+- **Tablet capture client:** [Open field capture](https://rinse-creature-critter.ngrok-free.dev/field-test).
+- **Repository:** [Rishikakaps/Shinrai-MVP](https://github.com/Rishikakaps/Shinrai-MVP), renamed from japan-day-capital-deployment-integrity.
+
+At sign-in, paste the **analyst team access key**: the value of `CDI_ANALYST_TOKEN`
+from the host's private `.env`. This enables editing, uploads and reviews.
+`CDI_JUDGE_TOKEN` provides read-only access. Obtain keys privately from the host;
+credentials are excluded from this public README, Git and browser URLs.
+On the current laptop, configuration remains in `work/v2-field/.env`, while the
+running source is `work/motor-overview`.
+
+The laptop serves the current build on **port 8004** through ngrok HTTPS. Keep
+the laptop, backend and tunnel running. Local access is
+[http://127.0.0.1:8004/app](http://127.0.0.1:8004/app). Android Chrome should use
+the HTTPS link for camera access. This temporary endpoint is not an always-on
+production deployment. Japan Day is the hackathon; Shinrai is the repository name.
+
+## Latest machinery and scan changes
+
+- The main Overview table contains **40 motors / 240 claims**, with manufacturer,
+  model, serial availability, HP/kW, RPM, voltage and protected source-file links.
+- Machine selectors and the editable registry's manufacturer/model suggestions
+  use the imported records. Corrections retain the original nameplate metadata.
+- **37 source photos** were uniquely matched against publisher metadata; three
+  records remain metadata-only. Fourteen records have no published serial and
+  are explicitly flagged for review.
+- Evidence files filter to the selected machine. **Show all files** reveals the
+  full inspection. The editable registry, Evidence Inbox, reviewed create/update
+  proposals and expandable activity tray remain available. Overview and Registry
+  are separate pages. Evidence uses Upload → Review → Link screens; site work uses
+  Capture → Identity → Interview → Observations screens with explicit navigation.
+  Completed saves advance the workflow, and scrolling never switches pages.
+  An empty identity selector explains that accepted matching evidence is required.
+- A unique exact OCR serial can attach a scan to the matching row as **context**.
+  Conflicts and intended-machine mismatches require review. Scanning does not
+  automatically accept evidence, confirm physical identity or support a claim.
+
+### Sample capture
+
+1. Open the MTR-031 overview above: **General Electric**, model **121123**, serial
+   **134678**. Open **Open scan sample** on the laptop.
+2. On Android Chrome open Site Inspection, select **MTR-031**, and capture the
+   displayed label or upload the unchanged sample image.
+3. Review the saved original. The tested scan returns `CONTEXT_LINKED` for MTR-031
+   and appears among its files. Review any registry proposal in the Evidence Inbox
+   before accepting changes. Use good focus, framing and lighting for camera tests.
+
+These public dataset labels are machine-generated and **unverified**. MTR tags
+and the plant association are synthetic. The photos prove no ownership, location,
+purchase, payment, installation or commissioning. Imported originals remain
+unaccepted and claims remain evidence-driven. Raw source photos, databases and
+credentials are not committed. See [provenance and import instructions](fixtures/motor-nameplates/README.md).
+
+## Current verification
+
+Integrated local checks: **178 passed, 17 skipped**, **23 frontend DOM tests
+passed**, Ruff passed. External-service checks skipped locally remain unverified.
+A real Edge browser check verified 40 rows/selectors, machine-scoped files,
+show-all filtering and sample upload/scan without JavaScript errors. The public
+HTTPS API was checked. Physical tablet hardware testing remains separate.
+
+The original Plant A walkthrough and default **8000** startup instructions below
+are retained for new clones. The current demo uses **8004** and the 40-motor registry.
 
 Latest connected build: [motor registry, reviewed scan proposals, source-frame adjustments and verification](docs/multimodal-continuation.md). `/app` includes editable Overview records; `/evidence-inbox` uses the shared durable processing queue.
 

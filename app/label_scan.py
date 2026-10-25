@@ -14,6 +14,7 @@ from fastapi.responses import Response
 from app import engine
 from app.identifiers import compare_scan, parse_fields
 from app.models import Asset, Evidence, Inspection, Reason
+from app.nameplates import associate_nameplate
 
 
 class ScanRequest(Reason):
@@ -138,6 +139,10 @@ def install_label_scan(app, store, authenticate):
                 raise HTTPException(409, "Original evidence integrity failed")
             asset = store.get(db, Asset, body.asset_id, iid) if body.asset_id else None
         result = scan_file(store.files / ev.sha256)
+        with store.transaction() as db:
+            result["registry_association"] = associate_nameplate(
+                store, db, iid, eid, result, body.asset_id, actor, body.reason
+            )
         comparison = compare_scan(result, {k: getattr(asset, k, None) for k in ("serial", "model", "site")})
         match = {
             "MATCH_CANDIDATE": "matches_declared_serial",

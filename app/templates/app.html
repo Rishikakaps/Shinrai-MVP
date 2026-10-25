@@ -3,19 +3,20 @@
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="csrf-token" content="{{ viewer.csrf }}">
-  <title>Plant inspection · Capital Integrity</title>
+  <title>Plant inspection · Shinrai</title>
   <link rel="stylesheet" href="{{ static_asset('app.css') }}"><link rel="stylesheet" href="{{ static_asset('v2-app.css') }}"><script src="{{ static_asset('app.js') }}" defer></script><script src="{{ static_asset('registry.js') }}" defer></script><script src="{{ static_asset('v2-app.js') }}" defer></script>
 </head>
 <body data-role="{{ viewer.role }}" data-actor="{{ viewer.actor }}">
   <a class="skip-link" href="#workspace">Skip to the current task</a>
   <header class="app-header">
-    <a href="#/overview" class="brand">Capital Integrity</a>
+    <a href="#/overview" class="brand">Shinrai</a>
     <label class="inspection-picker"><span class="sr-only">Current inspection</span><select id="inspection-picker" aria-label="Current inspection"><option>Loading inspections…</option></select></label>
     <span id="v2-case-control"></span><span class="identity">{{ viewer.actor }} <span class="role-label">{{ viewer.role }}</span></span>
     <button id="logout" class="quiet">Sign out</button>
   </header>
   <nav class="nav-rail" aria-label="Main navigation">
     <a href="#/overview" data-view="overview"><span aria-hidden="true">⌂</span><span>Overview</span></a>
+    <a href="#/registry" data-view="registry"><span aria-hidden="true">▦</span><span>Registry</span></a>
     <a href="#/evidence" data-view="evidence"><span aria-hidden="true">▤</span><span>Evidence</span></a>
     <a href="/evidence-inbox"><span aria-hidden="true">⇥</span><span>Evidence Inbox</span></a>
     <a href="#/site" data-view="site"><span aria-hidden="true">⌖</span><span>Site inspection</span></a>

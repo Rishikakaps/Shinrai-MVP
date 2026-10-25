@@ -100,7 +100,7 @@
   const head = (name, sub, tools = "") =>
     `<header class="page-header"><div><h1>${name}</h1><p class="muted">${sub}</p></div><div class="tools">${tools}</div></header>`;
   const ctx = () =>
-    `<div class="v2-context"><label>Machine <select id="v2-machine" ${!canNavigate() ? "disabled" : ""}>${opts(U.state.report.assets, U.state.aid, (a) => a.tag + " · " + (a.serial || "serial unknown"))}</select></label><span class="status ${S.physical ? "supported" : "unresolved"}">${S.physical ? "Identity confirmed" : "Identity not confirmed"}</span><label>Investment <select id="v2-project" ${!canNavigate() ? "disabled" : ""}><option value="">No project selected</option>${opts(S.snap?.investments.filter((p) => p.asset_links.some((l) => l.physical_asset_id === S.physical)) || [], S.project, (p) => p.title)}</select></label></div>`;
+    `<div class="v2-context"><label>Machine <select id="v2-machine" ${!canNavigate() ? "disabled" : ""}>${opts(U.state.report.assets, U.state.aid, (a) => U.machineLabel ? U.machineLabel(a) : a.tag + " · " + (a.serial || "serial unknown"))}</select></label><span class="status ${S.physical ? "supported" : "unresolved"}">${S.physical ? "Identity confirmed" : "Identity not confirmed"}</span><label>Investment <select id="v2-project" ${!canNavigate() ? "disabled" : ""}><option value="">No project selected</option>${opts(S.snap?.investments.filter((p) => p.asset_links.some((l) => l.physical_asset_id === S.physical)) || [], S.project, (p) => p.title)}</select></label></div>`;
   async function load() {
     S.cases = await U.api("/api/v1/cases");
     S.caps = await U.api("/api/v1/capabilities");
@@ -190,6 +190,10 @@
           )}</details>`)
     );
   }
+  function workflowPages(current) {
+    return `<nav class="workflow-nav" aria-label="Site inspection steps">${[['site','1. Capture label'],['identity','2. Confirm identity'],['interview','3. Interview'],['observations','4. Observations']].map(([id,label])=>`<a href="#/${id}" ${id===current?'aria-current="step"':''}>${label}</a>`).join('')}</nav>`;
+  }
+  function go(view){if(!canNavigate())throw Error("Stop capture and wait for processing before continuing.");U.state.dirty=false;S.dirty=false;U.state.view=view;window.history.pushState(null,'','#/'+view);U.render();window.scrollTo(0,0);}
   function identity() {
     const a = asset();
     if (!a) return "<p>Select a machine first.</p>";
@@ -202,6 +206,7 @@
         e.facts.model === a.model &&
         e.facts.site === a.site,
     );
+    if(!S.physical&&!ev.length)return `<section class="work-sheet identity-empty"><h2>Confirm ${esc(a.tag)} identity</h2><label class="v2-field">Accepted identity evidence<select name="identity_evidence_id" disabled aria-describedby="identity-empty-reason"><option value="">No accepted identity evidence yet</option></select></label><p id="identity-empty-reason" class="banner">Saved files are not automatically accepted identity evidence. Review an original and its serial, model and site before confirming this machine.</p><p><a class="button-link primary" href="#/evidence">Review this machine’s evidence →</a></p><p>Public source labels have no verified site. Keep site information unknown until you have independent evidence.</p><button disabled>Accept matching evidence before confirming identity</button></section>`;
     return `<details class="work-sheet" ${!S.physical ? "open" : ""}><summary>${S.physical ? "✓ Confirmed identity · " + esc(a.tag) : "1 · Confirm machine identity"}</summary><p>Match the serial, model and site against accepted evidence. Selecting a machine alone does not confirm it.</p>${
       S.physical
         ? `<p>${esc(physical().serial)} · ${esc(physical().model)}</p>`
@@ -227,7 +232,8 @@
   }
   function overview() {
     const snap = S.snap;
-    if (U.state.report.assets.some(a => a.provenance?.source_url)) return head("Motor nameplate registry", "Public source labels remain unverified. Plant C and internal tags are demonstration associations.") + ctx() + `<details class="subdisclosure"><summary>Six claims and reconciliation</summary>${U.legacy.overview()}</details>`;
+    if(U.state.report.assets.some(a=>Object.keys(a.nameplate_metadata||{}).length)) return U.legacy.overview(true);
+    if (U.state.report.assets.some(a => a.provenance?.source_url)) return U.legacy.overview(true);
     const rows = U.state.report.assets
       .map((a) => {
         const bind = snap.asset_bindings.find(
@@ -259,7 +265,7 @@
         "Multiple visits. One machine history. Review what still needs evidence.",
         analyst ? btn("repeat-visit", "Prepare repeat trial visit") : "",
       ) +
-      `<p>${esc(snap.case.company)} · ${snap.v1_inspections.length} visits · ${snap.investments.length} investment proposals · Synthetic demo</p><div class="table-region"><div class="table-scroll"><table><thead><tr><th>Machine</th><th>Identity</th><th>Deployment gaps</th><th>Investment</th><th>Next action</th></tr></thead><tbody>${rows}</tbody></table></div></div>${ctx()}${history()}<details class="subdisclosure"><summary>Original claims and declaration setup</summary>${U.legacy.overview()}</details>`
+      `<p>${esc(snap.case.company)} · ${snap.v1_inspections.length} visits · ${snap.investments.length} investment proposals · Synthetic demo</p><div class="table-region"><div class="table-scroll"><table><thead><tr><th>Machine</th><th>Identity</th><th>Deployment gaps</th><th>Investment</th><th>Next action</th></tr></thead><tbody>${rows}</tbody></table></div></div>${ctx()}<div class="page-foot"><a href="#/evidence">Continue to Evidence →</a><a href="#/registry">Edit machine declarations</a><a href="#/visit-history">View visit history</a></div>`
     );
   }
   function history() {
@@ -274,13 +280,18 @@
     return `<section class="work-sheet"><h2>Since the previous visit</h2>${!S.physical ? "<p>Confirm identity to retrieve this machine’s history.</p>" : `<p>${previous.length ? "Earlier visits are retained; select one in the visit picker to inspect its original findings." : "This is the first visit for this case."}</p><p>${tasks.length} open evidence requests · ${S.snap.audio.filter((a) => a.physical_asset_id === S.physical).length} saved recordings</p>${project() ? `<p><strong>${esc(project().title)}</strong> · ${esc(project().stage)} · Reported proposal</p><p>${esc(project().rationale)}</p>` : "<p>No investment proposal is linked yet.</p>"}`}</section>`;
   }
   function scan() {
-    return `<section class="work-sheet"><h2>Read the machine label</h2><p>Capture a barcode and printed serial. A scan proposes identifiers; review still determines identity.</p><p><a href="/api/v1/inspections/${visit()}/demo-label/${U.state.aid}" target="_blank" rel="noopener">Open synthetic trial label on the laptop</a> · Prepared Plant A trials only; this is not independent evidence.</p>${analyst ? `<div class="section-actions">${btn("camera", "Open phone camera")}${btn("camera-stop", "Close camera")}</div><video id="v2-camera" class="v2-camera" playsinline muted autoplay hidden></video><button type="button" data-v2="capture-photo" id="v2-capture-photo" hidden>Capture this label</button><label class="v2-field">Or take/upload a label photo<input id="v2-label-file" type="file" accept="image/jpeg,image/png" capture="environment"></label><p class="small">Use HTTPS on the phone. Keep the label centered, still and well-lit. Originals are saved unaccepted.</p>` : ""}<div id="v2-scan-result">${scanResult()}</div></section>`;
+    const registry = Object.keys(asset()?.nameplate_metadata || {}).length;
+    const claimIds = new Set(U.state.report.claims.filter(c=>c.asset_id===U.state.aid).map(c=>c.id));
+    const linked = new Set((U.state.report.evidence_links||[]).filter(l=>l.active&&claimIds.has(l.claim_id)).map(l=>l.evidence_id));
+    const photo = U.state.report.evidence.find(e=>linked.has(e.id)&&e.media_type?.startsWith('image/'));
+    const sample = registry ? (photo ? `<p><a href="/api/v1/inspections/${visit()}/evidence/${photo.id}/original" target="_blank" rel="noopener">Open this machine's source photo on the laptop</a> · Public dataset, unverified; use MTR-031 for the clear scan sample.</p>` : '<p>No source photo available for this record.</p>') : `<p><a href="/api/v1/inspections/${visit()}/demo-label/${U.state.aid}" target="_blank" rel="noopener">Open synthetic trial label on the laptop</a> · Prepared Plant A trials only; this is not independent evidence.</p>`;
+    return `<section class="work-sheet"><h2>Read the machine label</h2><p>Capture a barcode and printed serial. A scan proposes identifiers; review still determines identity.</p>${sample}${analyst ? `<div class="section-actions">${btn("camera", "Open phone camera")}${btn("camera-stop", "Close camera")}</div><video id="v2-camera" class="v2-camera" playsinline muted autoplay hidden></video><button type="button" data-v2="capture-photo" id="v2-capture-photo" hidden>Capture this label</button><label class="v2-field">Or take/upload a label photo<input id="v2-label-file" type="file" accept="image/jpeg,image/png" capture="environment"></label><p class="small">Use HTTPS on the phone. Keep the label centered, still and well-lit. Originals are saved unaccepted.</p>` : ""}<div id="v2-scan-result">${scanResult()}</div></section>`;
   }
   function scanResult() {
     if (!S.scan)
       return '<p class="muted">No label has been scanned in this session.</p>';
     const x = S.scan;
-    return `<p class="banner">${esc(title(x.identity_result))}. ${esc(x.next_action)}</p><p>Quality: ${esc(x.quality_flags.map(title).join(", ") || "No readability warning")}</p><p>Decoded candidates: ${esc(x.serial_suggestions.join(" · ") || "None — rescan or flag unclear")}</p><details><summary>Read OCR text</summary><pre>${esc(x.ocr_text || "No text read")}</pre></details><p><a href="#/evidence" data-v2="review-scan">Review the saved original and correct fields →</a>${x.intake_id ? ` · <a href="/evidence-inbox?intake=${encodeURIComponent(x.intake_id)}">Review registry create/update proposal →</a>` : ""}</p>`;
+    return `${x.registry_association?.tag?`<p class="banner">Registry candidate: ${esc(x.registry_association.tag)} · ${esc(x.registry_association.state)}. Context only; review original before accepting evidence.</p>`:""}<p class="banner">${esc(title(x.identity_result))}. ${esc(x.next_action)}</p><p>Quality: ${esc(x.quality_flags.map(title).join(", ") || "No readability warning")}</p><p>Decoded candidates: ${esc(x.serial_suggestions.join(" · ") || "None — rescan or flag unclear")}</p><details><summary>Read OCR text</summary><pre>${esc(x.ocr_text || "No text read")}</pre></details><p><a href="#/evidence" data-v2="review-scan">Review the saved original and correct fields →</a>${x.intake_id ? ` · <a href="/evidence-inbox?intake=${encodeURIComponent(x.intake_id)}">Review registry create/update proposal →</a>` : ""}</p>`;
   }
   function segmentPanel() {
     const segments = S.snap.segments.filter((s) =>
@@ -365,21 +376,11 @@
     )}${val("speaker", "Speaker label", "Speaker 1 — unconfirmed", 'maxlength="200"')}${val("operating_mode", "Operating mode", "unknown", 'maxlength="200"')}</div><label class="check-label"><input id="v2-speaker-confirmed" type="checkbox">Speaker attribution checked</label><label class="check-label"><input id="v2-consent" type="checkbox">Recording is authorized and speakers have been informed.</label><label class="check-label"><input id="v2-synthetic" type="checkbox" checked>This is a synthetic demonstration recording.</label><label class="check-label"><input id="v2-share" type="checkbox">Share this synthetic recording with judges</label><label class="check-label"><input id="v2-incremental" type="checkbox">Process interview speech in separate short clips while recording</label><div class="section-actions">${analyst ? btn("record", "Start recording", !S.physical || (S.scan && S.scan.identity_result !== "matches_declared_serial") ? "disabled" : "", "primary") + btn("stop", "Stop recording", !S.recording ? "disabled" : "") : ""}</div><p id="v2-record-status" role="status">${S.recording ? "Recording — originals save after each completed clip." : "Idle. Permission is requested only when you start recording."}</p><audio id="v2-audio-preview" controls hidden></audio><div id="v2-unsaved">${unsaved()}</div>${analyst ? `<label class="v2-field">Or upload a saved clip<input id="v2-audio-file" type="file" accept="audio/wav,audio/webm,audio/mp4,.wav,.webm,.m4a,.mp4"></label>` : ""}${segmentPanel()}${chatPanel()}</section>`;
   }
   function site() {
-    return (
-      head(
-        "Inspect " + esc(asset()?.tag || "a machine"),
-        "Capture the source. Review what was said. Ask what is still missing.",
-        `<a href="#/wearable">Wearable preview →</a>`,
-      ) +
-      ctx() +
-      identity() +
-      scan() +
-      capture() +
-      recordings() +
-      history() +
-      `<details class="subdisclosure"><summary>Record direct observations and link them to claims</summary>${U.legacy.siteView()}</details>`
-    );
+    return head("Capture " + esc(asset()?.tag || "a machine"), "Save one readable label, then review its evidence on the next screen.") + ctx() + workflowPages("site") + scan() + `<div class="page-foot"><a href="#/evidence">← Evidence</a><a href="#/identity">Continue to identity review →</a></div>`;
   }
+  function identityPage(){return head("Confirm machine identity", "Choose reviewed evidence before establishing the physical machine.")+ctx()+workflowPages("identity")+identity()+`<div class="page-foot"><a href="#/site">← Label capture</a>${S.physical?'<a href="#/interview">Continue to interview →</a>':'<a href="#/evidence">Review evidence before continuing →</a>'}</div>`;}
+  function interviewPage(){return head("Interview", "Record or review one source at a time.")+ctx()+workflowPages("interview")+(S.physical?capture():'<section class="work-sheet"><p class="banner">Confirm physical identity before recording an interview for this machine.</p><a href="#/identity">Open identity confirmation →</a></section>')+`<div class="page-foot"><a href="#/recordings">Saved recordings</a><a href="#/observations">Continue to observations →</a></div>`;}
+  function observationsPage(){return workflowPages("observations")+U.legacy.siteView();}
   function chatPanel() {
     return !analyst
       ? ""
@@ -702,6 +703,9 @@
   }
   function render(view) {
     if (!U.state.report) return undefined;
+    if(view==='registry')return head('Machine registry','Edit declarations here; source review happens in Evidence.')+(window.CDIIntake?.panel('registry')||'')+(U.legacy.declarations?.()||'');
+    if(!S.snap&&['identity','interview','observations','recordings','visit-history'].includes(view))return setup();
+    if(S.snap&&['identity','interview','observations','recordings','visit-history'].includes(view))return ({identity:identityPage,interview:interviewPage,observations:observationsPage,recordings:()=>head('Saved recordings','')+ctx()+recordings()+'<a href="#/interview">Back to interview</a>','visit-history':()=>head('Visit history','')+ctx()+history()})[view]();
     if (
       ["overview", "site", "investments", "followups", "wearable"].includes(
         view,
@@ -717,11 +721,7 @@
     if (view === "evidence") $("#workspace").insertAdjacentHTML("afterbegin", window.CDIIntake?.panel(view) || "");
     if (S.snap && view === "assessment")
       $("#workspace").insertAdjacentHTML("beforeend", assessment());
-    if (S.snap && view === "evidence")
-      $("#workspace").insertAdjacentHTML(
-        "beforeend",
-        ctx() + identity() + scan(),
-      );
+
     afterRender();
   }
   function afterRender() {
@@ -1058,6 +1058,11 @@
     );
     U.state.eid = ev.id;
     await refresh();
+    if(S.scan.identity_result==='matches_declared_serial'&&canNavigate()){
+      U.state.cid=U.state.report.claims.find(c=>c.asset_id===U.state.aid&&c.kind==='identity')?.id||U.state.cid;
+      U.state.evidenceStep=2;
+      go('evidence');
+    }
     U.note(
       "Original saved unaccepted. " +
         title(S.scan.identity_result) +
@@ -1161,11 +1166,7 @@
         }),
       );
     },
-    "review-scan": () => {
-      U.state.view = "evidence";
-      U.state.evidenceStep = 2;
-      U.render();
-    },
+    "review-scan": () => {U.state.evidenceStep = 2;go("evidence");},
     record: startRecording,
     stop: stopRecording,
     analyse: async () => {
@@ -1466,6 +1467,7 @@
           body: prior ? { ...body, physical_asset_id: prior.id } : body,
         });
         await refresh();
+        go("interview");
       }
       if (id === "segment") {
         const old = S.segment;
@@ -1752,7 +1754,7 @@
     "hashchange",
     () => {
       if (!canNavigate()) {
-        history.replaceState(null, "", "#/" + U.state.view);
+        window.history.replaceState(null, "", "#/" + U.state.view);
         U.note("Capture is still active; stop it first.", true);
       }
     },

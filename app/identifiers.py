@@ -19,7 +19,7 @@ def parse_fields(text):
         "manufacturer": r"(?:manufacturer|maker)",
         "site": r"(?:site|location)",
     }
-    return {
+    fields = {
         key: list(
             dict.fromkeys(
                 m.group(1).strip()
@@ -30,6 +30,16 @@ def parse_fields(text):
         )[:20]
         for key, pattern in patterns.items()
     }
+    # Nameplate tables often print Model No. and Serial No. on one line,
+    # without a colon. Read only a single explicit label-following token.
+    for key in ("model", "serial"):
+        inline = re.findall(
+            rf"\b{key}\s+(?:no\.?|number)\s+([A-Za-z0-9][A-Za-z0-9_./-]{{1,79}})(?=\s|$)",
+            text,
+            re.IGNORECASE,
+        )
+        fields[key] = list(dict.fromkeys(fields[key] + inline))[:20]
+    return fields
 
 
 def code_fields(payload):

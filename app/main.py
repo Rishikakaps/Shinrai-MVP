@@ -197,7 +197,7 @@ def create_app(
             store.close()
 
     app = FastAPI(
-        title="Capital Deployment Integrity V2",
+        title="Shinrai V2",
         version="0.3.0",
         docs_url=None,
         redoc_url=None,
@@ -686,7 +686,7 @@ def create_app(
         claims = {c.id: c for c in snapshot.claims}
         assets = {a.id: a for a in snapshot.assets}
         lines = [
-            "Capital Deployment Integrity V1",
+            "Shinrai V1",
             f"Inspection: {snapshot.inspection.name}",
             f"Site: {snapshot.inspection.site}",
             f"Review state: {snapshot.inspection.state}",

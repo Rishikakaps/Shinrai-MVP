@@ -11,6 +11,8 @@ def save_asset(store, db, iid, body, actor, aid=None):
     if any(engine.norm(a.tag) == engine.norm(body.tag) and a.id != aid for a in store.list(db, Asset, iid)):
         raise HTTPException(409, "Asset tag already exists")
     values = body.model_dump(exclude={"reason", "version"})
+    if aid and "nameplate_metadata" not in body.model_fields_set:
+        values.pop("nameplate_metadata", None)
     if aid:
         asset = store.get(db, Asset, aid, iid)
         if asset.version != body.version:

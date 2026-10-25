@@ -23,6 +23,7 @@ from app.field_models import (
 from app.identifiers import compare_scan, normalized
 from app.label_scan import scan_file
 from app.models import Asset, Evidence, FollowUpAction, now
+from app.nameplates import associate_nameplate
 from app.v2_media import persist_original
 from app.v2_models import (
     AssetBinding,
@@ -64,11 +65,22 @@ def process_capture(service, case_id, capture_id, actor, reason):
         with store.transaction() as db:
             current = service.get(db, VisualCapture, capture_id, case_id)
             check_version(current, item.version)
+            raw["registry_association"] = associate_nameplate(
+                store,
+                db,
+                item.inspection_id,
+                item.evidence_id,
+                raw,
+                item.intended_asset_id,
+                actor,
+                reason,
+            )
             current.raw_result, current.comparison = raw, result
             current.working_fields = current.working_fields.model_validate(result["observed_fields"])
             current.state = (
                 "NEEDS_REVIEW"
                 if result["decision"] in {"MATCH_CANDIDATE", "NEEDS_REVIEW"}
+                or raw["registry_association"]["state"] == "CONTEXT_LINKED"
                 else "NEEDS_RESCAN"
             )
             current.error = None

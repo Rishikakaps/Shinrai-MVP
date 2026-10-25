@@ -52,5 +52,5 @@
       }
     });
   });
-  window.CDIIntake={async load(){},panel(view){return view==='overview'?registry():['evidence','site'].includes(view)?'<section class="work-sheet"><h2>Evidence intake</h2><p>Upload, process, review scan proposals and adjust source frames in the connected inbox.</p><a href="/evidence-inbox">Open Evidence Inbox →</a></section>':'';}};
+  window.CDIIntake={async load(){},panel(view){return view==='registry'?registry():['evidence','site'].includes(view)?'<section class="work-sheet"><h2>Evidence intake</h2><p>Upload, process, review scan proposals and adjust source frames in the connected inbox.</p><a href="/evidence-inbox">Open Evidence Inbox →</a></section>':'';}};
 })();
