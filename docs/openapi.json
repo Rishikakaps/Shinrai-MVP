@@ -1,7 +1,7 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "Capital Deployment Integrity V2",
+    "title": "Shinrai V2",
     "version": "0.3.0"
   },
   "paths": {

@@ -119,7 +119,7 @@ def make_snapshot(service, db, request, case_id, get_report):
 def text_report(snapshot):
     case = snapshot["case"]
     lines = [
-        "Capital Deployment Integrity V2",
+        "Shinrai V2",
         f"Case: {case['company']} / {case['site']}",
         "SYNTHETIC DEMO - not real company evidence",
         snapshot["scope"],
@@ -255,8 +255,8 @@ def pdf_report(snapshot, base_url):
         leftMargin=42,
         topMargin=45,
         bottomMargin=42,
-        title="Capital Deployment Integrity V2 Review",
-        author="Capital Deployment Integrity",
+        title="Shinrai V2 Review",
+        author="Shinrai",
     )
     story = []
 
@@ -275,7 +275,7 @@ def pdf_report(snapshot, base_url):
             Paragraph(f'<link href="{escape(url)}" color="#245d43">{escape(label)}</link>', styles["MetaV2"])
         )
 
-    p("Capital Deployment Integrity V2", "Title")
+    p("Shinrai V2", "Title")
     p(snapshot["case"]["company"] + " / " + snapshot["case"]["site"], "Heading1")
     p("SYNTHETIC DEMO | Generated " + snapshot["generated_at"], "MetaV2")
     p(snapshot["scope"])
